@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Business {
+  id              String         @id @default(uuid())
+  email           String         @unique
+  password        String
+  name            String
+  websiteUrl      String?
+  phone           String?        @unique
+  twilioPhone     String?        // Phone number registered on Twilio
+  language        String?        @default("en") // Default system language
+  plan            String         @default("Starter") // Starter, Pro, Agency
+  stripeCustomerId String?
+  messageCount    Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  knowledgeBases  KnowledgeBase[]
+  conversations   Conversation[]
+  bookings        Booking[]
+}
+
+model KnowledgeBase {
+  id         String   @id @default(uuid())
+  businessId String
+  url        String?
+  content    String   // The text extracted from the URL
+  embedding  String?  // JSON string array representing the vector
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id            String   @id @default(uuid())
+  businessId    String
+  customerPhone String
+  messages      String   // JSON string of all messages { role, content }
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model Booking {
+  id            String   @id @default(uuid())
+  businessId    String
+  customerPhone String
+  customerName  String
+  date          DateTime
+  time          String
+  status        String   @default("pending") // pending, completed, cancelled
+  reviewSent    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
