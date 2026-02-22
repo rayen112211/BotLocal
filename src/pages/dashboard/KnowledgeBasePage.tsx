@@ -3,13 +3,12 @@ import { Globe, Plus, Trash2, RefreshCw } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/components/ui/use-toast"; // Assuming useToast is from shadcn/ui
+import { toast } from "sonner";
 
 export default function KnowledgeBasePage() {
   const queryClient = useQueryClient();
-  const [url, setUrl] = useState("");
+  const [scanUrl, setScanUrl] = useState("");
   const { business, token } = useAuth();
-  const { toast } = useToast();
 
   // Fetch real data from express DB
   const { data: chunks = [], isLoading } = useQuery({
@@ -40,17 +39,10 @@ export default function KnowledgeBasePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["knowledgeBase", business?.id] });
-      toast({
-        title: "Website scanned successfully!",
-        description: "AI is now learning it.",
-      });
-      setUrl("");
+      toast.success("Website scanned successfully! AI is now learning it.");
+      setScanUrl("");
     },
-    onError: (err: any) => toast({
-      title: "Scan failed",
-      description: err.message,
-      variant: "destructive",
-    })
+    onError: (err: any) => toast.error(err.message)
   });
 
   const handleScan = () => {

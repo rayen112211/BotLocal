@@ -1,73 +1,61 @@
-# Welcome to your Lovable project
+# BotLocal - AI-Powered WhatsApp Chatbot for Local Businesses
 
-## Project info
+## Goal of the Project
+BotLocal aims to provide local businesses with an intelligent, automated WhatsApp customer service agent. The goal is to allow businesses (like restaurants, salons, and clinics) to automate routine inquiries, handle appointment bookings, and ingest business knowledge directly from their existing websites, freeing up staff and providing 24/7 instant responses to customers.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Current Features & capabilities
 
-## How can I edit this code?
+### 1. Robust Full-Stack Architecture
+- **Frontend:** Built with React, Vite, TypeScript, Tailwind CSS, and `shadcn/ui` for a premium, responsive user interface.
+- **Backend:** Powered by Node.js, Express, and Prisma ORM (SQLite for development).
 
-There are several ways of editing your application.
+### 2. Secure Authentication
+- Custom JWT-based authentication system.
+- Secure password hashing using `bcryptjs`.
+- Protected dashboard routes ensuring data isolation per business account.
 
-**Use Lovable**
+### 3. Business Dashboard
+- **Overview:** High-level metrics showing message usage, active conversations, and recent bookings.
+- **Conversations (Mock):** A UI for reviewing AI-driven WhatsApp conversations in multiple languages.
+- **Bookings:** A calendar and list view for managing appointments.
+- **Knowledge Base:** Allows businesses to input their website URL for the AI to scan and learn from (currently mocked scanning functionality).
+- **Settings & Billing:** Infrastructure in place for managing bot personality, business details, and subscription tiers.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Tech Stack
+- **Frontend:** React 18, Vite, React Router DOM, React Query (@tanstack/react-query), Tailwind CSS, shadcn/ui components, Lucide Icons.
+- **Backend:** Node.js, Express, Prisma ORM, JSON Web Tokens (JWT), Bcryptjs for password hashing.
+- **Database:** SQLite (development) via Prisma.
 
-Changes made via Lovable will be committed automatically to this repo.
+## Running the Project Locally
 
-**Use your preferred IDE**
+### Prerequisites
+- Node.js (v18+)
+- npm or bun
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
+### 1. Backend Setup
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+cd backend
+npm install
+# Push the Prisma schema to create the SQLite database
+npx prisma db push --accept-data-loss
+# Seed the database with a test admin account
+npx ts-node seed.ts
+# Start the backend development server
 npm run dev
 ```
+*The backend will run on http://localhost:3001*
 
-**Edit a file directly in GitHub**
+### 2. Frontend Setup
+Open a new terminal window:
+```sh
+npm install
+npm run dev
+```
+*The frontend will run on http://localhost:8080*
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### 3. Usage
+- Navigate to `http://localhost:8080` in your browser.
+- You can log in with the seeded test account:
+  - **Email:** `admin@botlocal.com`
+  - **Password:** `password123`
+- Alternatively, you can create a new account via the Sign Up page.
