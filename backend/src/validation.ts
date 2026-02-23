@@ -18,6 +18,8 @@ export const businessUpdateSchema = z.object({
   websiteUrl: z.string().url().optional(),
   name: z.string().optional(),
   twilioPhone: z.string().optional(),
+  telegramBotToken: z.string().optional(),
+  telegramBotUsername: z.string().optional(),
 });
 
 export const bookingCreateSchema = z.object({

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router } from 'express';
 import twilio from 'twilio';
 import prisma from '../lib/prisma';

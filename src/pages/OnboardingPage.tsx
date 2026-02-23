@@ -23,7 +23,8 @@ export default function OnboardingPage() {
   const [industry, setIndustry] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isSandbox, setIsSandbox] = useState(true);
+  const [telegramToken, setTelegramToken] = useState("");
+  const [telegramUsername, setTelegramUsername] = useState("");
 
   // For Step 4 (Test Message)
   const [isListening, setIsListening] = useState(false);
@@ -78,24 +79,24 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleConnectWhatsAppSandbox = async () => {
+  const handleConnectTelegram = async () => {
+    if (!telegramToken) {
+      toast({ variant: "destructive", title: "Error", description: "Please enter your Telegram Bot Token" });
+      return;
+    }
+
     setIsSaving(true);
-    setIsSandbox(true);
     try {
       await businessAPI.update({
-        twilioPhone: "+14155238886"
+        telegramBotToken: telegramToken,
+        telegramBotUsername: telegramUsername || undefined
       });
       setStep(4);
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.response?.data?.error || "Failed to save sandbox number" });
+      toast({ variant: "destructive", title: "Error", description: error.response?.data?.error || "Failed to save Telegram token" });
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleOwnNumberSetup = () => {
-    setIsSandbox(false);
-    setStep(4);
   };
 
   // Simulate listening for a test message
@@ -115,7 +116,7 @@ export default function OnboardingPage() {
   const steps = [
     { number: 1, title: "Industry" },
     { number: 2, title: "Train Bot" },
-    { number: 3, title: "WhatsApp" },
+    { number: 3, title: "Connect" },
     { number: 4, title: "Test" },
     { number: 5, title: "Ready" }
   ];
@@ -219,74 +220,66 @@ export default function OnboardingPage() {
           </Card>
         )}
 
-        {/* Step 3: Connect WhatsApp */}
+        {/* Step 3: Connect Telegram */}
         {step === 3 && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-500 font-sans">
-            <h2 className="text-2xl font-bold text-center mb-2">Connect WhatsApp</h2>
-            <p className="text-muted-foreground text-center mb-8">How do you want to connect your bot to WhatsApp right now?</p>
+            <h2 className="text-2xl font-bold text-center mb-2">Connect Messenger</h2>
+            <p className="text-muted-foreground text-center mb-8">Let's connect your AI to Telegram for free.</p>
 
             <div className="grid gap-4 mb-8">
-              {/* Option A: FREE SANDBOX TEST */}
-              <div className="flex flex-col gap-4 p-6 rounded-2xl border-2 transition-all duration-300 border-primary bg-primary/5 ring-4 ring-primary/10 shadow-md">
+              <div className="flex flex-col gap-6 p-6 rounded-2xl border-2 transition-all duration-300 border-primary bg-primary/5 ring-4 ring-primary/10 shadow-md">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex flex-shrink-0 items-center justify-center shadow-lg">
-                    <Phone className="w-6 h-6" />
+                  <div className="w-12 h-12 rounded-xl bg-blue-500 text-white flex flex-shrink-0 items-center justify-center shadow-lg">
+                    <MessageSquare className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-bold text-lg text-foreground">🆓 Test with Sandbox (Free)</h3>
+                    <h3 className="font-bold text-lg text-foreground">🤖 Telegram Bot (Free)</h3>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  This sandbox is for <strong>YOU to test alone</strong> before buying a real number.<br />
-                  You'll need to message the join code once to activate.<br />
-                  Once activated, test your bot as if you were a customer.
-                </p>
-                <div className="text-sm text-foreground bg-white/50 p-3 rounded-xl border border-primary/10">
-                  <p><strong>Phone:</strong> +14155238886</p>
-                  <p><strong>Code:</strong> join afternoon-give</p>
-                </div>
-                <Button
-                  onClick={handleConnectWhatsAppSandbox}
-                  disabled={isSaving}
-                  className="w-full text-md font-bold"
-                >
-                  {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : "Use Sandbox"}
-                </Button>
-              </div>
 
-              {/* Option B: REAL BUSINESS (PAID) */}
-              <div className="flex flex-col gap-4 p-6 rounded-2xl border-2 border-dashed border-muted-foreground/30 bg-white">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-green-100 text-green-700 flex flex-shrink-0 items-center justify-center">
-                    <Building2 className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-lg text-foreground">💰 Get Your Own Number (~$1/month)</h3>
+                <div className="text-sm text-muted-foreground leading-relaxed bg-white/50 p-4 rounded-xl border border-primary/10">
+                  <p className="font-bold mb-2 text-foreground">How to get your token:</p>
+                  <ol className="list-decimal list-inside space-y-2">
+                    <li>Open Telegram and search for <strong>@BotFather</strong></li>
+                    <li>Send the message <strong>/newbot</strong></li>
+                    <li>Follow the instructions to name your bot</li>
+                    <li>Copy the <strong>HTTP API Token</strong> provided</li>
+                  </ol>
+                  <div className="mt-4">
+                    <a href="https://core.telegram.org/bots/tutorial#obtain-your-bot-token" target="_blank" rel="noreferrer" className="text-primary font-bold hover:underline">
+                      Need help? View Tutorial
+                    </a>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Buy a Twilio number. Your real customers message it normally.<br />
-                  No codes. No confusion. Just your AI responding to customers 24/7.
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1 text-md font-bold border-green-200 hover:bg-green-50 text-green-700"
-                    onClick={() => window.open("https://www.twilio.com/console/sms/phone-numbers", "_blank")}
-                  >
-                    Buy Twilio Number
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    className="text-md font-bold"
-                    onClick={handleOwnNumberSetup}
-                  >
-                    I have it
-                  </Button>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-bold block mb-1">Bot Token <span className="text-red-500">*</span></label>
+                    <Input
+                      placeholder="e.g. 1234567890:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+                      className="bg-white"
+                      value={telegramToken}
+                      onChange={(e) => setTelegramToken(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-bold block mb-1">Bot Username (Optional)</label>
+                    <Input
+                      placeholder="e.g. MyStoreBot"
+                      className="bg-white"
+                      value={telegramUsername}
+                      onChange={(e) => setTelegramUsername(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <p className="text-xs text-center text-muted-foreground uppercase tracking-widest font-bold">
-                  We'll guide you after you get your number
-                </p>
+
+                <Button
+                  onClick={handleConnectTelegram}
+                  disabled={isSaving}
+                  className="w-full text-md font-bold h-12"
+                >
+                  {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : "Connect Telegram Bot"}
+                </Button>
               </div>
             </div>
 
@@ -310,19 +303,8 @@ export default function OnboardingPage() {
                 </div>
                 <h2 className="text-2xl font-bold mb-4">Send a Test Message</h2>
                 <div className="bg-muted/30 p-6 rounded-2xl mb-8 border border-border">
-                  <p className="text-lg font-medium text-foreground mb-2">1. Open WhatsApp</p>
-
-                  {isSandbox ? (
-                    <>
-                      <p className="text-lg font-medium text-foreground mb-4">2. Send the message <strong>join afternoon-give</strong> to:</p>
-                      <div className="text-3xl font-black text-primary tracking-wider bg-white py-3 rounded-xl border shadow-sm">+1 415 523 8886</div>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-lg font-medium text-foreground mb-4">2. Message your own Twilio number.</p>
-                      <div className="text-xl font-bold text-primary tracking-wider bg-white py-3 px-2 rounded-xl border shadow-sm">Your AI will respond in seconds!</div>
-                    </>
-                  )}
+                  <p className="text-lg font-medium text-foreground mb-4">2. Send any message to your new bot.</p>
+                  <div className="text-xl font-bold text-primary tracking-wider bg-white py-3 px-2 rounded-xl border shadow-sm">Your AI will respond in seconds!</div>
                 </div>
 
                 <Button
@@ -343,7 +325,7 @@ export default function OnboardingPage() {
                   <CheckCircle2 className="w-12 h-12 text-success" />
                   <div className="absolute inset-0 rounded-full border-4 border-success animate-ping opacity-20"></div>
                 </div>
-                <h2 className="text-3xl font-black text-foreground mb-3 tracking-tight">✅ WhatsApp Connected!</h2>
+                <h2 className="text-3xl font-black text-foreground mb-3 tracking-tight">✅ Connected!</h2>
                 <p className="text-muted-foreground text-lg">We received your ping. Moving to dashboard...</p>
               </div>
             )}
@@ -355,7 +337,7 @@ export default function OnboardingPage() {
           <Card className="p-10 text-center border-none shadow-2xl rounded-[3rem] animate-in slide-in-from-bottom-8 duration-700">
             <h2 className="text-4xl font-black text-foreground mb-4 tracking-tight">Setup Complete! 🎉</h2>
             <p className="text-muted-foreground mb-10 text-xl font-medium">
-              Your AI employee is ready to work. It knows your business and is connected to WhatsApp.
+              Your AI employee is ready to work. It knows your business and is connected to Telegram.
             </p>
 
             <Button

@@ -10,6 +10,7 @@ import stripeRouter from './routes/stripe';
 import dashboardRouter from './routes/dashboard';
 import businessRouter from './routes/business';
 import conversationsRouter from './routes/conversations';
+import telegramRouter from './routes/telegram';
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ import { authenticate } from './middleware/authMiddleware';
 app.use('/api/auth', authRouter);
 app.use('/api/scanner', authenticate, scannerRouter);
 app.use('/api/whatsapp', whatsappRouter); // Webhook must be public
+app.use('/api/telegram', telegramRouter); // Webhook must be public
 app.use('/api/bookings', authenticate, bookingsRouter);
 app.use('/api/stripe', stripeRouter); // Webhook is inside this router, we'll protect sessions internally
 app.use('/api/dashboard', authenticate, dashboardRouter);
