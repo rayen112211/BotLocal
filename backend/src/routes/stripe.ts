@@ -20,11 +20,33 @@ router.post('/create-checkout-session', authenticate, async (req: AuthRequest, r
         const business = await prisma.business.findUnique({ where: { id: businessId } });
         if (!business) return res.status(404).json({ error: 'Business not found' });
 
+        let unitAmount = 0;
+        let productName = '';
+
+        if (planId === 'pro') {
+            unitAmount = 2900;
+            productName = 'Pro Plan - BotLocal';
+        } else if (planId === 'agency') {
+            unitAmount = 9900;
+            productName = 'Agency Plan - BotLocal';
+        } else {
+            return res.status(400).json({ error: 'Invalid plan selected' });
+        }
+
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: [
                 {
-                    price: planId, // The Stripe Price ID for Starter or Pro
+                    price_data: {
+                        currency: 'usd',
+                        product_data: {
+                            name: productName,
+                        },
+                        unit_amount: unitAmount,
+                        recurring: {
+                            interval: 'month',
+                        },
+                    },
                     quantity: 1,
                 },
             ],

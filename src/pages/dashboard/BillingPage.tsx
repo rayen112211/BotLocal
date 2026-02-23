@@ -11,7 +11,6 @@ import { api } from "@/lib/api";
 const PLANS = [
   {
     id: "starter",
-    priceId: "",
     name: "Starter",
     price: "$0",
     period: "/month",
@@ -26,7 +25,6 @@ const PLANS = [
   },
   {
     id: "pro",
-    priceId: import.meta.env.VITE_STRIPE_PRO_PRICE_ID || "price_pro_placeholder",
     name: "Pro",
     price: "$29",
     period: "/month",
@@ -42,7 +40,6 @@ const PLANS = [
   },
   {
     id: "agency",
-    priceId: import.meta.env.VITE_STRIPE_AGENCY_PRICE_ID || "price_agency_placeholder",
     name: "Agency",
     price: "$99",
     period: "/month",
@@ -76,10 +73,9 @@ export default function BillingPage() {
   const handleUpgrade = async (plan: typeof PLANS[0]) => {
     try {
       if (!business) return;
-      if (!plan.priceId) return;
 
       const res = await api.post('/stripe/create-checkout-session', {
-        planId: plan.priceId,
+        planId: plan.id,
         businessId: business.id
       });
 
@@ -182,7 +178,7 @@ export default function BillingPage() {
                 variant={currentPlan === plan.name ? "default" : "outline"}
                 className="w-full"
                 onClick={() => handleUpgrade(plan)}
-                disabled={currentPlan === plan.name || !plan.priceId}
+                disabled={currentPlan === plan.name}
               >
                 {currentPlan === plan.name ? "Current Plan" : `Choose ${plan.name}`}
               </Button>
