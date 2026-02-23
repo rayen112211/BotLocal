@@ -1,11 +1,10 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
 import Stripe from 'stripe';
 
+import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/authMiddleware';
 
 const router = Router();
-const prisma = new PrismaClient();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: '2026-01-28.clover',
 });

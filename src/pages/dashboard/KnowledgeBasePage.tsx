@@ -4,26 +4,19 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { scannerAPI } from "@/lib/api";
 
 export default function KnowledgeBasePage() {
-  const { business, token } = useAuth();
   const { toast } = useToast();
   const [newUrl, setNewUrl] = useState("");
   const [isScanning, setIsScanning] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["knowledge-base", business?.id],
+    queryKey: ["knowledge-base"],
     queryFn: async () => {
-      const res = await fetch(
-        "http://localhost:3001/api/scanner",
-        {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      );
-      if (!res.ok) throw new Error("Failed to fetch");
-      return res.json();
+      const res = await scannerAPI.getAll();
+      return res.data;
     }
   });
 
@@ -36,23 +29,8 @@ export default function KnowledgeBasePage() {
     setIsScanning(true);
 
     try {
-      const res = await fetch(
-        "http://localhost:3001/api/scanner/scan",
-        {
-          method: "POST",
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ url: newUrl, businessId: business?.id })
-        }
-      );
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        throw new Error(result.error || "Failed to scan");
-      }
+      const res = await scannerAPI.scan(newUrl);
+      const result = res.data;
 
       toast({
         title: "Success!",
@@ -74,15 +52,7 @@ export default function KnowledgeBasePage() {
 
   const handleRescan = async (entryId: string) => {
     try {
-      const res = await fetch(
-        `http://localhost:3001/api/scanner/${entryId}/rescan`,
-        {
-          method: "POST",
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to rescan");
+      await scannerAPI.rescan(entryId);
 
       toast({ title: "Success", description: "Website rescanned successfully" });
       refetch();
@@ -95,15 +65,7 @@ export default function KnowledgeBasePage() {
     if (!confirm("Delete this knowledge base entry?")) return;
 
     try {
-      const res = await fetch(
-        `http://localhost:3001/api/scanner/${entryId}`,
-        {
-          method: "DELETE",
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to delete");
+      await scannerAPI.delete(entryId);
 
       toast({ title: "Success", description: "Entry deleted" });
       refetch();

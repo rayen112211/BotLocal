@@ -6,6 +6,7 @@ import { MessageSquare, CheckCircle2, Loader, AlertCircle, Building2, Utensils, 
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { scannerAPI, api } from "@/lib/api";
 
 const INDUSTRIES = [
   { id: "Restaurant", icon: Utensils, label: "Restaurant & Cafe", color: "bg-orange-500" },
@@ -51,20 +52,8 @@ export default function OnboardingPage() {
     setIsScanning(true);
 
     try {
-      const res = await fetch("http://localhost:3001/api/scanner/scan", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
-        },
-        body: JSON.stringify({ url: website, businessId: business?.id })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to scan website");
-      }
+      const res = await scannerAPI.scan(website);
+      const data = res.data;
 
       toast({
         title: "Website scanned!",
@@ -86,20 +75,11 @@ export default function OnboardingPage() {
   const handleUpdateProfile = async () => {
     setIsSaving(true);
     try {
-      const res = await fetch(`http://localhost:3001/api/business/${business?.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
-        },
-        body: JSON.stringify({
-          industry,
-          botPersonality: personality,
-          websiteUrl: website
-        })
+      await api.patch("/business", {
+        industry,
+        botPersonality: personality,
+        websiteUrl: website,
       });
-
-      if (!res.ok) throw new Error("Failed to save profile");
 
       setStep(4);
     } catch (error: any) {

@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/authMiddleware';
+import { scannerScanSchema } from '../validation';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET all knowledge base entries
 router.get('/', authenticate, async (req: AuthRequest, res) => {
@@ -73,18 +73,11 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
 router.post('/scan', authenticate, async (req: AuthRequest, res) => {
     try {
         const { businessId } = req;
-        const { url } = req.body;
-
-        if (!url) {
-            return res.status(400).json({ error: 'URL is required' });
+        const parsed = scannerScanSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return res.status(400).json({ error: 'Invalid URL', details: parsed.error.flatten() });
         }
-
-        // Validate URL format
-        try {
-            new URL(url);
-        } catch {
-            return res.status(400).json({ error: 'Invalid URL format' });
-        }
+        const { url } = parsed.data;
 
         // Check if already scanned
         const existing = await prisma.knowledgeBase.findFirst({

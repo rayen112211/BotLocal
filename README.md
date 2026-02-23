@@ -32,7 +32,7 @@ BotLocal/
 
 ### Backend
 - **Framework:** Node.js + Express
-- **Database:** Prisma ORM + SQLite
+- **Database:** Prisma ORM + PostgreSQL
 - **Auth:** JWT + bcryptjs
 - **AI:** Groq (free) + Hugging Face + LangChain
 - **WhatsApp:** Twilio API
@@ -67,8 +67,7 @@ BotLocal/
 cd backend
 cp .env.example .env
 npm install
-npx prisma db push --accept-data-loss
-npm run db:seed
+npx prisma migrate dev
 npm run dev
 ```
 
@@ -80,7 +79,7 @@ Test Account:
 
 ### 2️⃣ Frontend Setup
 ```bash
-cd frontend
+# from the project root
 npm install
 npm run dev
 ```
@@ -154,26 +153,39 @@ Even if two businesses work in the same field, their bots will sound different b
 
 ## 🗂️ Project Structure Details
 
-### Backend Routes (to be created)
+### Backend Routes (implemented)
 ```
-POST   /api/auth/register      - Create account
-POST   /api/auth/login         - Login
-POST   /api/auth/refresh       - Refresh token
+POST   /api/auth/signup             - Create account
+POST   /api/auth/login              - Login
 
-GET    /api/dashboard          - Get business metrics
-GET    /api/conversations      - List conversations
-POST   /api/conversations      - Create new conversation
-GET    /api/bookings           - List bookings
-POST   /api/bookings           - Create booking
+GET    /api/dashboard/:businessId   - Get business metrics
 
-POST   /api/knowledge-base     - Upload website URL
-GET    /api/knowledge-base     - Get stored knowledge
+GET    /api/conversations/:businessId                  - List conversations
+GET    /api/conversations/:businessId/:customerPhone   - Full history
+PATCH  /api/conversations/toggle-ai                    - Toggle AI for a conversation
 
-POST   /api/whatsapp/webhook   - Receive WhatsApp messages
-POST   /api/whatsapp/send      - Send WhatsApp message
+GET    /api/bookings                - List bookings for current business
+POST   /api/bookings                - Create booking
+GET    /api/bookings/:id            - Get single booking
+PUT    /api/bookings/:id            - Update booking
+DELETE /api/bookings/:id            - Delete booking
+PATCH  /api/bookings/:id/status     - Update booking status
+POST   /api/bookings/:id/send-review - Send review request flag
 
-GET    /api/business           - Get business info
-PUT    /api/business           - Update business info
+GET    /api/scanner                 - List knowledge base entries
+POST   /api/scanner/scan            - Scan website and ingest content
+GET    /api/scanner/:id             - Get entry content
+PUT    /api/scanner/:id             - Update content
+DELETE /api/scanner/:id             - Delete entry
+POST   /api/scanner/:id/rescan      - Rescan website
+
+POST   /api/whatsapp/webhook        - Receive WhatsApp messages (Twilio)
+
+POST   /api/stripe/create-checkout-session - Start Stripe subscription checkout
+POST   /api/stripe/webhook          - Stripe webhooks (server-to-server)
+
+GET    /api/business                - Get current business info (from JWT)
+PATCH  /api/business                - Update current business info
 ```
 
 ### Frontend Pages (to be created)
@@ -194,18 +206,22 @@ PUT    /api/business           - Update business info
 - ✅ Password hashing with bcryptjs
 - ✅ Protected routes & data isolation
 - ✅ CORS enabled
-- ⏳ Rate limiting (to add)
-- ⏳ Input validation (Zod)
+- ✅ Global rate limiting
+- ✅ Input validation with Zod on critical routes
 
 ## 📝 Environment Variables
 
 Create `.env` in backend folder (see `.env.example`):
-- `DATABASE_URL` - SQLite path
-- `JWT_SECRET` - Secret key for tokens
+- `DATABASE_URL` - PostgreSQL connection string
+- `JWT_SECRET` - Secret key for tokens (required)
 - `GROQ_API_KEY` - AI model access
 - `TWILIO_*` - WhatsApp integration
 - `HUGGING_FACE_API_KEY` - Alternative AI
-- `STRIPE_SECRET_KEY` - Payments (optional)
+- `STRIPE_SECRET_KEY` - Payments (optional in dev)
+- `STRIPE_WEBHOOK_SECRET` - Stripe webhook verification
+- `FRONTEND_URL` - Deployed frontend origin (for Stripe redirects & CORS)
+
+For production deployment and a full list of env vars, see `LAUNCH_CHECKLIST.md` and `DEPLOYMENT.md`.
 
 ## 📚 Database Schema
 

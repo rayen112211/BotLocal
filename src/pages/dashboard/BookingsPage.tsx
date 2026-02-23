@@ -4,25 +4,18 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { bookingsAPI } from "@/lib/api";
 
 export default function BookingsPage() {
-  const { business, token } = useAuth();
   const { toast } = useToast();
   const [filter, setFilter] = useState<"all" | "pending" | "completed">("all");
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["bookings", business?.id, filter],
+    queryKey: ["bookings", filter],
     queryFn: async () => {
-      const res = await fetch(
-        `http://localhost:3001/api/bookings`,
-        {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      );
-      if (!res.ok) throw new Error("Failed to fetch");
-      const result = await res.json();
+      const res = await bookingsAPI.getAll();
+      const result = res.data;
       
       if (filter === "all") return result.bookings || [];
       return (result.bookings || []).filter((b: any) => b.status === filter);
@@ -31,19 +24,7 @@ export default function BookingsPage() {
 
   const handleStatusChange = async (bookingId: string, newStatus: string) => {
     try {
-      const res = await fetch(
-        `http://localhost:3001/api/bookings/${bookingId}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ status: newStatus })
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to update");
+      await bookingsAPI.updateStatus(bookingId, newStatus);
       
       toast({ title: "Success", description: `Booking updated to ${newStatus}` });
       refetch();
@@ -56,15 +37,7 @@ export default function BookingsPage() {
     if (!confirm("Are you sure?")) return;
 
     try {
-      const res = await fetch(
-        `http://localhost:3001/api/bookings/${bookingId}`,
-        {
-          method: "DELETE",
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to delete");
+      await bookingsAPI.delete(bookingId);
       
       toast({ title: "Success", description: "Booking deleted" });
       refetch();

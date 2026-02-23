@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { MessageSquare, ArrowRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { authAPI } from "@/lib/api";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -20,17 +21,8 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch("http://localhost:3001/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to log in");
-      }
+      const res = await authAPI.login(email, password);
+      const data = res.data;
 
       login(data.token, data.business);
       toast({ title: "Welcome back!", description: "Successfully logged in." });

@@ -4,38 +4,23 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { bookingsAPI } from "@/lib/api";
 
 export default function ReviewRequestsPage() {
-  const { business, token } = useAuth();
   const { toast } = useToast();
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["bookings", business?.id],
+    queryKey: ["bookings"],
     queryFn: async () => {
-      const res = await fetch(
-        "http://localhost:3001/api/bookings",
-        {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      );
-      if (!res.ok) throw new Error("Failed to fetch");
-      return res.json();
+      const res = await bookingsAPI.getAll();
+      return res.data;
     }
   });
 
   const handleSendReview = async (bookingId: string) => {
     try {
-      const res = await fetch(
-        `http://localhost:3001/api/bookings/${bookingId}/send-review`,
-        {
-          method: "POST",
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to send");
+      await bookingsAPI.sendReview(bookingId);
 
       toast({
         title: "Review request sent!",

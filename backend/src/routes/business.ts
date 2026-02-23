@@ -1,13 +1,17 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
+import { authenticate, AuthRequest } from '../middleware/authMiddleware';
+import { businessUpdateSchema } from '../validation';
 
 const router = Router();
-const prisma = new PrismaClient();
 
-// Get professional business settings
-router.get('/:businessId', async (req, res) => {
+// Get business settings for authenticated business
+router.get('/', authenticate, async (req: AuthRequest, res) => {
     try {
-        const { businessId } = req.params;
+        const { businessId } = req;
+        if (!businessId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
         const business = await prisma.business.findUnique({ where: { id: businessId } });
         if (!business) return res.status(404).json({ error: 'Business not found' });
         res.json(business);
@@ -17,20 +21,21 @@ router.get('/:businessId', async (req, res) => {
 });
 
 // Update business settings for onboarding & settings page
-router.patch('/:businessId', async (req, res) => {
+router.patch('/', authenticate, async (req: AuthRequest, res) => {
     try {
-        const { businessId } = req.params;
-        const { industry, botPersonality, customInstructions, websiteUrl, name } = req.body;
+        const { businessId } = req;
+        if (!businessId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const parsed = businessUpdateSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return res.status(400).json({ error: 'Invalid business data', details: parsed.error.flatten() });
+        }
 
         const updated = await prisma.business.update({
             where: { id: businessId },
-            data: {
-                industry,
-                botPersonality,
-                customInstructions,
-                websiteUrl,
-                name
-            }
+            data: parsed.data,
         });
 
         res.json(updated);

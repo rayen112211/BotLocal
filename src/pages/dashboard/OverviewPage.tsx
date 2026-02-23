@@ -3,21 +3,21 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
+import { dashboardAPI } from "@/lib/api";
 
 export default function OverviewPage() {
-  const { business, token } = useAuth();
+  const { business } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard", business?.id],
     queryFn: async () => {
-      const res = await fetch(`http://localhost:3001/api/dashboard/${business?.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (!res.ok) throw new Error("Failed to fetch dashboard");
-      return res.json();
-    }
+      if (!business?.id) {
+        throw new Error("Missing business id");
+      }
+      const res = await dashboardAPI.getStats(business.id);
+      return res.data;
+    },
+    enabled: !!business?.id,
   });
 
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading dashboard...</div>;

@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { MessageSquare, ArrowRight, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { authAPI } from "@/lib/api";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -38,17 +39,8 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch("http://localhost:3001/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to sign up");
-      }
+      const res = await authAPI.signup(email, password, name);
+      const data = res.data;
 
       login(data.token, data.business);
       toast({ title: "Welcome!", description: "Your account has been created." });

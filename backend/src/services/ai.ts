@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import axios from 'axios';
-
-const prisma = new PrismaClient();
+import prisma from '../lib/prisma';
 
 const INDUSTRY_PROMPTS: Record<string, string> = {
     "Restaurant": "Focus on menu availability, reservation times, dietary options, and restaurant ambiance. Encourage users to book a table for dining.",

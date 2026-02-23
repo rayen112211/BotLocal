@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { generateReply } from '../services/ai';
 import twilio from 'twilio';
+import prisma from '../lib/prisma';
+import { generateReply } from '../services/ai';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.post('/webhook', async (req, res) => {
     const { Body, From, To } = req.body;

@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
+import { rateLimit } from 'express-rate-limit';
 
 import scannerRouter from './routes/scanner';
 import whatsappRouter from './routes/whatsapp';
@@ -11,13 +11,11 @@ import dashboardRouter from './routes/dashboard';
 import businessRouter from './routes/business';
 import conversationsRouter from './routes/conversations';
 
-import { rateLimit } from 'express-rate-limit';
-
 dotenv.config();
 
 const app = express();
-const prisma = new PrismaClient();
 const port = process.env.PORT || 3001;
+const frontendUrl = process.env.FRONTEND_URL;
 
 // 1. Rate Limiting (Global)
 const limiter = rateLimit({
@@ -31,7 +29,10 @@ const limiter = rateLimit({
 // Apply rate limiter to all routes
 app.use(limiter);
 
-app.use(cors());
+app.use(cors({
+    origin: frontendUrl || '*',
+    credentials: true,
+}));
 
 // Stripe webhook needs raw body
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));

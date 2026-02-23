@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/authMiddleware';
+import { bookingCreateSchema, bookingStatusUpdateSchema } from '../validation';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET all bookings for a business
 router.get('/', authenticate, async (req: AuthRequest, res) => {
@@ -71,13 +71,15 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
 router.post('/', authenticate, async (req: AuthRequest, res) => {
     try {
         const { businessId } = req;
-        const { customerName, customerPhone, serviceType, date, time, notes } = req.body;
-
-        if (!customerName || !customerPhone || !date || !time) {
-            return res.status(400).json({
-                error: 'Missing required fields: customerName, customerPhone, date, time'
-            });
+        if (!businessId) {
+            return res.status(401).json({ error: 'Unauthorized' });
         }
+
+        const parsed = bookingCreateSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return res.status(400).json({ error: 'Invalid booking data', details: parsed.error.flatten() });
+        }
+        const { customerName, customerPhone, serviceType, date, time, notes } = parsed.data;
 
         const booking = await prisma.booking.create({
             data: {
@@ -177,11 +179,15 @@ router.patch('/:id/status', authenticate, async (req: AuthRequest, res) => {
     try {
         const { businessId } = req;
         const id = req.params.id as string;
-        const { status } = req.body;
-
-        if (!['pending', 'confirmed', 'completed', 'cancelled'].includes(status)) {
-            return res.status(400).json({ error: 'Invalid status' });
+        if (!businessId) {
+            return res.status(401).json({ error: 'Unauthorized' });
         }
+
+        const parsed = bookingStatusUpdateSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return res.status(400).json({ error: 'Invalid status', details: parsed.error.flatten() });
+        }
+        const { status } = parsed.data;
 
         const booking = await prisma.booking.findUnique({ where: { id } });
         if (!booking || booking.businessId !== businessId) {

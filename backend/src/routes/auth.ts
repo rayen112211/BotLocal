@@ -1,19 +1,20 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+
+import prisma from '../lib/prisma';
+import { JWT_SECRET } from '../config';
+import { signupSchema, loginSchema } from '../validation';
 
 const router = Router();
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_123';
 
 router.post('/signup', async (req, res) => {
     try {
-        const { email, password, name } = req.body;
-
-        if (!email || !password || !name) {
-            return res.status(400).json({ error: 'Email, password, and name are required' });
+        const parsed = signupSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return res.status(400).json({ error: 'Invalid signup data', details: parsed.error.flatten() });
         }
+        const { email, password, name } = parsed.data;
 
         const existingBusiness = await prisma.business.findUnique({ where: { email } });
         if (existingBusiness) {
@@ -48,11 +49,11 @@ router.post('/signup', async (req, res) => {
 
 router.post('/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
-
-        if (!email || !password) {
-            return res.status(400).json({ error: 'Email and password are required' });
+        const parsed = loginSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return res.status(400).json({ error: 'Invalid login data', details: parsed.error.flatten() });
         }
+        const { email, password } = parsed.data;
 
         const business = await prisma.business.findUnique({ where: { email } });
         if (!business) {
