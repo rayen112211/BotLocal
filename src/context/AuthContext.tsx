@@ -4,6 +4,7 @@ interface Business {
     id: string;
     email: string;
     name: string;
+    twilioPhone?: string;
 }
 
 interface AuthContextType {

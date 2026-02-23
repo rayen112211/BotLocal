@@ -91,4 +91,9 @@ export const conversationsAPI = {
     api.patch('/conversations/toggle-ai', { conversationId, isAiEnabled }),
 };
 
+// Business settings
+export const businessAPI = {
+  update: (data: any) => api.put('/business', data),
+};
+
 export default api;

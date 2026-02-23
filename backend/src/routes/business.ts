@@ -21,7 +21,8 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
 });
 
 // Update business settings for onboarding & settings page
-router.patch('/', authenticate, async (req: AuthRequest, res) => {
+// Update business settings for onboarding & settings page
+const updateBusiness = async (req: AuthRequest, res: any) => {
     try {
         const { businessId } = req;
         if (!businessId) {
@@ -43,6 +44,9 @@ router.patch('/', authenticate, async (req: AuthRequest, res) => {
         console.error('[BUSINESS UPDATE ERROR]', error);
         res.status(500).json({ error: 'Failed to update business settings' });
     }
-});
+};
+
+router.patch('/', authenticate, updateBusiness);
+router.put('/', authenticate, updateBusiness);
 
 export default router;

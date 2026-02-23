@@ -1,24 +1,36 @@
-import { useState } from "react";
-import { Settings, Save, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Settings, Save, AlertCircle, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { businessAPI } from "@/lib/api";
 
 export default function BotSettingsPage() {
   const { business } = useAuth();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [settings, setSettings] = useState({
-    botName: "AI Assistant",
+    botName: business?.name || "AI Assistant",
     greetingMessage: "Hello! How can I help you today?",
     businessHours: "Mon-Fri: 9 AM - 6 PM",
     autoReplyOutOfHours: "We're currently closed. Please send us a message and we'll get back to you as soon as possible.",
     bookingConfirmation: "Your appointment has been confirmed! We'll see you then.",
-    language: "auto-detect"
+    language: "auto-detect",
+    twilioPhone: business?.twilioPhone || ""
   });
+
+  useEffect(() => {
+    if (business) {
+      setSettings(prev => ({
+        ...prev,
+        botName: business.name || prev.botName,
+        twilioPhone: business.twilioPhone || prev.twilioPhone
+      }));
+    }
+  }, [business]);
 
   const handleChange = (field: string, value: string) => {
     setSettings(prev => ({ ...prev, [field]: value }));
@@ -27,8 +39,10 @@ export default function BotSettingsPage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Simulate saving (in real app, would POST to backend)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await businessAPI.update({
+        name: settings.botName,
+        twilioPhone: settings.twilioPhone || undefined
+      });
       toast({
         title: "Settings saved!",
         description: "Your bot configuration has been updated."
@@ -37,7 +51,7 @@ export default function BotSettingsPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message
+        description: error.response?.data?.error || error.message || "Failed to save settings."
       });
     } finally {
       setIsSaving(false);
@@ -58,6 +72,21 @@ export default function BotSettingsPage() {
         </h2>
 
         <div className="space-y-4">
+          <div>
+            <Label htmlFor="twilioPhone" className="flex items-center gap-2">
+              <Phone className="w-4 h-4" /> Twilio WhatsApp Number
+            </Label>
+            <Input
+              id="twilioPhone"
+              value={settings.twilioPhone}
+              onChange={(e) => handleChange("twilioPhone", e.target.value)}
+              placeholder="+14155238886"
+              className="mt-1.5"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              The phone number your bot uses to communicate via WhatsApp Sandbox
+            </p>
+          </div>
           <div>
             <Label htmlFor="botName">Bot Name</Label>
             <Input
