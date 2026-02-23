@@ -57,6 +57,15 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'BotLocal Backend running.' });
 });
 
+// Global Error Handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('Unhandled Error:', err);
+    res.status(err.status || 500).json({
+        error: 'Internal Server Error',
+        message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : err.message
+    });
+});
+
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
