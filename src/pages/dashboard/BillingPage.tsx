@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 const PLANS = [
   {
     id: "starter",
+    priceId: "",
     name: "Starter",
     price: "$0",
     period: "/month",
@@ -25,6 +26,7 @@ const PLANS = [
   },
   {
     id: "pro",
+    priceId: import.meta.env.VITE_STRIPE_PRO_PRICE_ID || "price_pro_placeholder",
     name: "Pro",
     price: "$29",
     period: "/month",
@@ -40,6 +42,7 @@ const PLANS = [
   },
   {
     id: "agency",
+    priceId: import.meta.env.VITE_STRIPE_AGENCY_PRICE_ID || "price_agency_placeholder",
     name: "Agency",
     price: "$99",
     period: "/month",
@@ -70,12 +73,13 @@ export default function BillingPage() {
     enabled: !!business,
   });
 
-  const handleUpgrade = async (planId: string) => {
+  const handleUpgrade = async (plan: typeof PLANS[0]) => {
     try {
       if (!business) return;
+      if (!plan.priceId) return;
 
       const res = await api.post('/stripe/create-checkout-session', {
-        planId,
+        planId: plan.priceId,
         businessId: business.id
       });
 
@@ -146,8 +150,8 @@ export default function BillingPage() {
             <Card
               key={plan.id}
               className={`p-6 flex flex-col transition-all ${currentPlan === plan.name
-                  ? 'border-primary ring-2 ring-primary/20'
-                  : ''
+                ? 'border-primary ring-2 ring-primary/20'
+                : ''
                 } ${plan.recommended
                   ? 'md:ring-2 md:ring-primary/20 md:border-primary'
                   : ''
@@ -177,8 +181,8 @@ export default function BillingPage() {
               <Button
                 variant={currentPlan === plan.name ? "default" : "outline"}
                 className="w-full"
-                onClick={() => handleUpgrade(plan.id)}
-                disabled={currentPlan === plan.name}
+                onClick={() => handleUpgrade(plan)}
+                disabled={currentPlan === plan.name || !plan.priceId}
               >
                 {currentPlan === plan.name ? "Current Plan" : `Choose ${plan.name}`}
               </Button>

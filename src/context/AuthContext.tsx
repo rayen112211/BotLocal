@@ -6,6 +6,8 @@ interface Business {
     name: string;
     telegramBotToken?: string;
     telegramBotUsername?: string;
+    plan?: string;
+    messageCount?: number;
 }
 
 interface AuthContextType {
