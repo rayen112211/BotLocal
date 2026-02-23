@@ -14,7 +14,6 @@ model Business {
   name            String
   websiteUrl      String?
   phone           String?        @unique
-  twilioPhone     String?        // Phone number registered on Twilio
   telegramBotToken String?
   telegramBotUsername String?
   language        String?        @default("en") // Default system language

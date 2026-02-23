@@ -17,7 +17,6 @@ export const businessUpdateSchema = z.object({
   customInstructions: z.string().optional(),
   websiteUrl: z.string().url().optional(),
   name: z.string().optional(),
-  twilioPhone: z.string().optional(),
   telegramBotToken: z.string().optional(),
   telegramBotUsername: z.string().optional(),
 });

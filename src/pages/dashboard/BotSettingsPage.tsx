@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Save, AlertCircle, Phone } from "lucide-react";
+import { Settings, Save, AlertCircle, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -19,7 +19,8 @@ export default function BotSettingsPage() {
     autoReplyOutOfHours: "We're currently closed. Please send us a message and we'll get back to you as soon as possible.",
     bookingConfirmation: "Your appointment has been confirmed! We'll see you then.",
     language: "auto-detect",
-    twilioPhone: business?.twilioPhone || ""
+    telegramBotToken: business?.telegramBotToken || "",
+    telegramBotUsername: business?.telegramBotUsername || ""
   });
 
   useEffect(() => {
@@ -27,7 +28,8 @@ export default function BotSettingsPage() {
       setSettings(prev => ({
         ...prev,
         botName: business.name || prev.botName,
-        twilioPhone: business.twilioPhone || prev.twilioPhone
+        telegramBotToken: business.telegramBotToken || prev.telegramBotToken,
+        telegramBotUsername: business.telegramBotUsername || prev.telegramBotUsername
       }));
     }
   }, [business]);
@@ -41,7 +43,8 @@ export default function BotSettingsPage() {
     try {
       await businessAPI.update({
         name: settings.botName,
-        twilioPhone: settings.twilioPhone || undefined
+        telegramBotToken: settings.telegramBotToken || undefined,
+        telegramBotUsername: settings.telegramBotUsername || undefined
       });
       toast({
         title: "Settings saved!",
@@ -73,18 +76,33 @@ export default function BotSettingsPage() {
 
         <div className="space-y-4">
           <div>
-            <Label htmlFor="twilioPhone" className="flex items-center gap-2">
-              <Phone className="w-4 h-4" /> Twilio WhatsApp Number
+            <Label htmlFor="telegramBotToken" className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" /> Telegram Bot Token
             </Label>
             <Input
-              id="twilioPhone"
-              value={settings.twilioPhone}
-              onChange={(e) => handleChange("twilioPhone", e.target.value)}
-              placeholder="+14155238886"
+              id="telegramBotToken"
+              value={settings.telegramBotToken}
+              onChange={(e) => handleChange("telegramBotToken", e.target.value)}
+              placeholder="1234567890:ABCdefGhIJKlmNoPQRsTUVwxyZ"
               className="mt-1.5"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              The phone number your bot uses to communicate via WhatsApp Sandbox
+              Your secret HTTP API token from @BotFather
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="telegramBotUsername" className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" /> Telegram Bot Username
+            </Label>
+            <Input
+              id="telegramBotUsername"
+              value={settings.telegramBotUsername}
+              onChange={(e) => handleChange("telegramBotUsername", e.target.value)}
+              placeholder="MyAwesomeBot"
+              className="mt-1.5"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Example: YourBusinessBot (without the @ symbol)
             </p>
           </div>
           <div>

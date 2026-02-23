@@ -209,7 +209,7 @@ export default function ConversationsPage() {
                 <div className="p-4 border-t border-border bg-amber-50">
                   <p className="text-xs font-bold text-amber-800 flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />
-                    AI is paused. You can reply to this message directly in your WhatsApp app.
+                    AI is paused. You can reply to this message directly in your Telegram app.
                   </p>
                 </div>
               )}

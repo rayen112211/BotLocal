@@ -143,7 +143,7 @@ export default function ReviewRequestsPage() {
         <h3 className="font-medium text-blue-900 mb-2">How it works</h3>
         <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
           <li>After a booking is marked complete, you can request a review</li>
-          <li>Your bot will automatically send a WhatsApp message asking for a Google review</li>
+          <li>Your bot will automatically send a Telegram message asking for a Google review</li>
           <li>Reviews help build credibility and attract more customers</li>
           <li>Customers can easily leave a review through the link in the message</li>
         </ul>

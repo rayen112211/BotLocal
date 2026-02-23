@@ -4,16 +4,16 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 const features = [
-  { icon: MessageSquare, title: "AI WhatsApp Chatbot", desc: "Answer customer questions 24/7 with AI that knows your business inside out." },
+  { icon: MessageSquare, title: "AI Telegram Chatbot", desc: "Answer customer questions 24/7 with AI that knows your business inside out." },
   { icon: Globe, title: "Multilingual Support", desc: "Auto-detect and reply in Arabic, French, Italian, English — and more." },
-  { icon: Calendar, title: "Smart Bookings", desc: "Let customers book appointments directly through WhatsApp chat." },
+  { icon: Calendar, title: "Smart Bookings", desc: "Let customers book appointments directly through Telegram chat." },
   { icon: Star, title: "Review Automation", desc: "Automatically request Google reviews after completed appointments." },
   { icon: BarChart3, title: "Analytics Dashboard", desc: "Track messages, bookings, and customer satisfaction in real time." },
-  { icon: Zap, title: "5-Minute Setup", desc: "Scan your website, connect WhatsApp, and your bot is ready to go." },
+  { icon: Zap, title: "5-Minute Setup", desc: "Scan your website, connect Telegram, and your bot is ready to go." },
 ];
 
 const plans = [
-  { name: "Starter", price: 29, features: ["500 messages/month", "1 language", "Basic analytics", "WhatsApp chatbot", "Booking management"], popular: false },
+  { name: "Starter", price: 29, features: ["500 messages/month", "1 language", "Basic analytics", "Telegram chatbot", "Booking management"], popular: false },
   { name: "Pro", price: 59, features: ["Unlimited messages", "All languages", "Full analytics", "Review automation", "Priority support"], popular: true },
   { name: "Agency", price: 99, features: ["Everything in Pro", "Multiple locations", "White-label option", "API access", "Dedicated support"], popular: false },
 ];
@@ -74,14 +74,14 @@ export default function LandingPage() {
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6 animate-fade-up" style={{ animationDelay: "0.1s" }}>
             Your Business on{" "}
-            <span className="text-gradient">WhatsApp</span>,{" "}
+            <span className="text-gradient">Telegram</span>,{" "}
             <br className="hidden sm:block" />
             Powered by AI
           </h1>
 
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-fade-up" style={{ animationDelay: "0.2s" }}>
             Create an AI chatbot that answers questions, books appointments, and
-            collects reviews — all through WhatsApp. No coding required.
+            collects reviews — all through Telegram. No coding required.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-up" style={{ animationDelay: "0.3s" }}>
@@ -154,11 +154,10 @@ export default function LandingPage() {
             {plans.map((plan) => (
               <div
                 key={plan.name}
-                className={`relative p-8 rounded-xl border transition-all duration-300 ${
-                  plan.popular
+                className={`relative p-8 rounded-xl border transition-all duration-300 ${plan.popular
                     ? "bg-card border-primary shadow-elevated scale-[1.02]"
                     : "bg-card border-border shadow-card hover:shadow-card-hover"
-                }`}
+                  }`}
               >
                 {plan.popular && (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full gradient-primary text-primary-foreground text-xs font-semibold">
@@ -195,7 +194,7 @@ export default function LandingPage() {
       <section className="py-24 px-4">
         <div className="container mx-auto max-w-3xl text-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-            Ready to put your business on WhatsApp?
+            Ready to put your business on Telegram?
           </h2>
           <p className="text-lg text-muted-foreground mb-8">
             Join thousands of local businesses using AI to serve their customers better.

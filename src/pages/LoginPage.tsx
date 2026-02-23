@@ -76,7 +76,7 @@ export default function LoginPage() {
           <div className="w-20 h-20 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto mb-6">
             <MessageSquare className="w-10 h-10 text-primary-foreground" />
           </div>
-          <h2 className="text-2xl font-bold text-primary-foreground mb-3">AI-Powered WhatsApp for Your Business</h2>
+          <h2 className="text-2xl font-bold text-primary-foreground mb-3">AI-Powered Telegram for Your Business</h2>
           <p className="text-primary-foreground/70">Set up in 5 minutes. No coding required.</p>
         </div>
       </div>

@@ -5,6 +5,19 @@ import { generateReply } from './ai';
 // Store initialized bots to avoid recreating them on every request
 const activeBots: Record<string, Telegraf> = {};
 
+export async function setupTelegramWebhook(token: string, backendUrl: string) {
+    try {
+        const bot = new Telegraf(token);
+        const webhookUrl = `${backendUrl}/api/telegram/webhook/${token}`;
+        await bot.telegram.setWebhook(webhookUrl);
+        console.log(`[TELEGRAM] Webhook successfully set to ${webhookUrl}`);
+        activeBots[token] = bot;
+    } catch (error) {
+        console.error('[TELEGRAM] Failed to set webhook:', error);
+        throw new Error('Failed to connect Telegram Bot. Ensure token is correct and backend is public.');
+    }
+}
+
 export async function handleTelegramWebhook(token: string, body: any) {
     try {
         // Find business by token

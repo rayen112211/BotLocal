@@ -26,7 +26,7 @@ const FAQs = [
     items: [
       {
         q: "Can it really handle bookings automatically?",
-        a: "Yes! The bot collects customer details through conversation, confirms appointments, and stores everything in your dashboard. You can also send automatic confirmations via WhatsApp."
+        a: "Yes! The bot collects customer details through conversation, confirms appointments, and stores everything in your dashboard. You can also send automatic confirmations via Telegram."
       },
       {
         q: "How does it know about my services?",
@@ -150,9 +150,8 @@ export default function HelpPage() {
               >
                 <h3 className="font-semibold text-foreground">{category.category}</h3>
                 <ChevronDown
-                  className={`w-5 h-5 text-muted-foreground transition-transform ${
-                    expandedCategory === category.category ? "rotate-180" : ""
-                  }`}
+                  className={`w-5 h-5 text-muted-foreground transition-transform ${expandedCategory === category.category ? "rotate-180" : ""
+                    }`}
                 />
               </button>
 

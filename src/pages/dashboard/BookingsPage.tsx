@@ -16,7 +16,7 @@ export default function BookingsPage() {
     queryFn: async () => {
       const res = await bookingsAPI.getAll();
       const result = res.data;
-      
+
       if (filter === "all") return result.bookings || [];
       return (result.bookings || []).filter((b: any) => b.status === filter);
     }
@@ -25,7 +25,7 @@ export default function BookingsPage() {
   const handleStatusChange = async (bookingId: string, newStatus: string) => {
     try {
       await bookingsAPI.updateStatus(bookingId, newStatus);
-      
+
       toast({ title: "Success", description: `Booking updated to ${newStatus}` });
       refetch();
     } catch (error: any) {
@@ -38,7 +38,7 @@ export default function BookingsPage() {
 
     try {
       await bookingsAPI.delete(bookingId);
-      
+
       toast({ title: "Success", description: "Booking deleted" });
       refetch();
     } catch (error: any) {
@@ -84,7 +84,7 @@ export default function BookingsPage() {
           <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
           <h3 className="text-lg font-medium text-foreground mb-2">No bookings yet</h3>
           <p className="text-muted-foreground">
-            Customers will be able to book appointments through WhatsApp once your bot is live.
+            Customers will be able to book appointments through Telegram once your bot is live.
           </p>
         </Card>
       ) : (
@@ -142,7 +142,7 @@ export default function BookingsPage() {
                     </Button>
                   </>
                 )}
-                
+
                 {booking.status === "confirmed" && (
                   <Button
                     size="sm"

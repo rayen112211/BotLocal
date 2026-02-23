@@ -29,7 +29,7 @@ export default function OverviewPage() {
     { label: "Messages Today", value: stats.messagesUsed?.toString() || "0", icon: <MessageSquare className="w-5 h-5" />, trend: "Limit: " + stats.messageLimit },
     { label: "Active Conversations", value: stats.activeConversations?.toString() || "0", icon: <Users className="w-5 h-5" />, trend: "Today" },
     { label: "Bookings This Week", value: stats.bookingsThisWeek?.toString() || "0", icon: <Calendar className="w-5 h-5" />, trend: "Auto-scheduled" },
-    { label: "Reviews Collected", value: stats.reviewsCollected?.toString() || "0", icon: <AlertCircle className="w-5 h-5" />, trend: "Via WhatsApp" },
+    { label: "Reviews Collected", value: stats.reviewsCollected?.toString() || "0", icon: <AlertCircle className="w-5 h-5" />, trend: "Via Telegram" },
   ];
 
   return (

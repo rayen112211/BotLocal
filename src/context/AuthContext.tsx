@@ -4,7 +4,8 @@ interface Business {
     id: string;
     email: string;
     name: string;
-    twilioPhone?: string;
+    telegramBotToken?: string;
+    telegramBotUsername?: string;
 }
 
 interface AuthContextType {

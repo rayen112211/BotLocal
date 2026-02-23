@@ -2,6 +2,7 @@ import { Router } from 'express';
 import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/authMiddleware';
 import { businessUpdateSchema } from '../validation';
+import { setupTelegramWebhook } from '../services/telegram';
 
 const router = Router();
 
@@ -34,19 +35,20 @@ const updateBusiness = async (req: AuthRequest, res: any) => {
             return res.status(400).json({ error: 'Invalid business data', details: parsed.error.flatten() });
         }
 
-        // Check if trying to use the shared sandbox number
-        if (parsed.data.twilioPhone === '+14155238886') {
-            const existingBusiness = await prisma.business.findFirst({
-                where: {
-                    twilioPhone: '+14155238886',
-                    id: { not: businessId }
-                }
-            });
 
-            if (existingBusiness) {
-                return res.status(400).json({
-                    error: "Sandbox number already in use. Buy your own Twilio number at https://www.twilio.com"
-                });
+
+        // Setup Telegram Webhook if token is provided
+        if (parsed.data.telegramBotToken) {
+            try {
+                // Determine backend URL dynamically. Render uses x-forwarded-proto
+                const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+                const host = req.get('host');
+                const backendUrl = `${protocol}://${host}`;
+
+                // Set the webhook with Telegram
+                await setupTelegramWebhook(parsed.data.telegramBotToken, backendUrl);
+            } catch (error: any) {
+                return res.status(400).json({ error: error.message || 'Failed to connect Telegram Bot' });
             }
         }
 

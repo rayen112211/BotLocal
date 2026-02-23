@@ -33,7 +33,7 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setIsLoading(true);
@@ -65,7 +65,7 @@ export default function SignupPage() {
           </Link>
 
           <h1 className="text-2xl font-bold text-foreground mb-1">Create your account</h1>
-          <p className="text-muted-foreground mb-8">Set up your AI WhatsApp assistant in 2 minutes</p>
+          <p className="text-muted-foreground mb-8">Set up your AI Telegram assistant in 2 minutes</p>
 
           <form onSubmit={handleSignup} className="space-y-4">
             <div>
