@@ -236,11 +236,15 @@ export default function OnboardingPage() {
                     <h3 className="font-bold text-lg text-foreground">🆓 Test with Sandbox (Free)</h3>
                   </div>
                 </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  This sandbox is for <strong>YOU to test alone</strong> before buying a real number.<br />
+                  You'll need to message the join code once to activate.<br />
+                  Once activated, test your bot as if you were a customer.
+                </p>
                 <div className="text-sm text-foreground bg-white/50 p-3 rounded-xl border border-primary/10">
                   <p><strong>Phone:</strong> +14155238886</p>
                   <p><strong>Code:</strong> join afternoon-give</p>
                 </div>
-                <p className="text-sm font-medium text-amber-600">⚠️ Limited to 1 test business. First come, first served.</p>
                 <Button
                   onClick={handleConnectWhatsAppSandbox}
                   disabled={isSaving}
@@ -261,7 +265,8 @@ export default function OnboardingPage() {
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  For real customers. No join codes needed.
+                  Buy a Twilio number. Your real customers message it normally.<br />
+                  No codes. No confusion. Just your AI responding to customers 24/7.
                 </p>
                 <div className="flex gap-2">
                   <Button
