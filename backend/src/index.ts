@@ -12,6 +12,7 @@ import conversationsRouter from './routes/conversations';
 import telegramRouter from './routes/telegram';
 import notificationsRouter from './routes/notifications';
 import prisma from './lib/prisma';
+import { handleTelegramWebhook } from './services/telegram';
 
 dotenv.config();
 
@@ -46,6 +47,22 @@ app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/stripe', stripeRouter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Debug Telegram Webhook
+app.post('/api/telegram/webhook', async (req, res) => {
+    console.log('[TELEGRAM WEBHOOK] Message received:', JSON.stringify(req.body, null, 2));
+    res.status(200).send('OK');
+    try {
+        const business = await prisma.business.findFirst({
+            where: { telegramBotToken: { not: null } }
+        });
+        if (business && business.telegramBotToken) {
+            handleTelegramWebhook(business.telegramBotToken, req.body).catch(console.error);
+        }
+    } catch (err) {
+        console.error('[TELEGRAM WEBHOOK] Error processing fallback:', err);
+    }
+});
 
 // Routes
 import authRouter from './routes/auth';
@@ -135,7 +152,7 @@ app.get('/api/system/status', async (req: Request, res: Response) => {
     try {
         // Get business count
         const businessCount = await prisma.business.count();
-        
+
         // Get active bots (businesses with telegram tokens)
         const activeBots = await prisma.business.count({
             where: { telegramBotToken: { not: null } }

@@ -12,31 +12,31 @@ export const activeBots: Record<string, Telegraf> = {};
 export async function setupTelegramWebhook(token: string, backendUrl: string): Promise<{ success: boolean; error?: string }> {
     try {
         const bot = new Telegraf(token);
-        const webhookUrl = `${backendUrl}/api/telegram/webhook/${token}`;
-        
+        const webhookUrl = `https://botlocal.onrender.com/api/telegram/webhook`;
+
         // First, delete any existing webhook to ensure clean state
         await bot.telegram.deleteWebhook();
-        
+
         // Set our webhook
         await bot.telegram.setWebhook(webhookUrl, {
             drop_pending_updates: true // Clear any pending updates when setting webhook
         });
-        
+
         // Verify webhook was set correctly
         const webhookInfo = await bot.telegram.getWebhookInfo();
-        
+
         if (webhookInfo.url !== webhookUrl) {
             console.error('[TELEGRAM] Webhook URL mismatch:', webhookInfo.url, '!=', webhookUrl);
             throw new Error('Webhook verification failed - URL mismatch');
         }
-        
+
         // Test bot is actually accessible
         const botInfo = await bot.telegram.getMe();
         console.log(`[TELEGRAM] Bot connected: @${botInfo.username} (ID: ${botInfo.id})`);
-        
+
         // Store bot instance
         activeBots[token] = bot;
-        
+
         console.log(`[TELEGRAM] ✓ Webhook successfully set to ${webhookUrl}`);
         return { success: true };
     } catch (error: any) {
@@ -59,13 +59,13 @@ export async function getTelegramBotStatus(token: string): Promise<{
 }> {
     try {
         const bot = new Telegraf(token);
-        
+
         // Get webhook info
         const webhookInfo = await bot.telegram.getWebhookInfo();
-        
+
         // Get bot info
         const botInfo = await bot.telegram.getMe();
-        
+
         return {
             healthy: !!webhookInfo.url,
             webhookConfigured: !!webhookInfo.url,
@@ -137,11 +137,11 @@ export async function handleTelegramWebhook(token: string, body: any): Promise<{
 
         // 5. Check plan limits
         const messageLimit = business.plan === 'Agency' ? Infinity : (business.plan === 'Pro' ? 5000 : 500);
-        
+
         if (business.plan === 'Starter' && business.messageCount >= messageLimit) {
             console.log(`${logPrefix} Message limit reached for business ${business.id}`);
             await bot.telegram.sendMessage(
-                customerId, 
+                customerId,
                 "Please contact the business directly. (Message limit reached)"
             );
             return { success: true };
@@ -171,7 +171,7 @@ export async function handleTelegramWebhook(token: string, body: any): Promise<{
                 await bot.telegram.sendMessage(customerId, "AI replies are off for this chat. A team member will respond soon.");
                 return { success: true };
             }
-            
+
             // Parse existing messages
             try {
                 messages = JSON.parse(conversation.messages);
