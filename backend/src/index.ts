@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { rateLimit } from 'express-rate-limit';
@@ -52,8 +52,12 @@ app.use('/api/dashboard', authenticate, dashboardRouter);
 app.use('/api/business', authenticate, businessRouter);
 app.use('/api/conversations', authenticate, conversationsRouter);
 
-// Basic health route
-app.get('/api/health', (req, res) => {
+// Basic health routes
+app.get('/api/health', (req: Request, res: Response) => {
+    res.json({ status: 'OK' });
+});
+
+app.get('/health', (req: Request, res: Response) => {
     res.json({ status: 'OK' });
 });
 
