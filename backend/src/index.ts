@@ -54,7 +54,7 @@ app.use('/api/conversations', authenticate, conversationsRouter);
 
 // Basic health route
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', message: 'BotLocal Backend running.' });
+    res.json({ status: 'OK' });
 });
 
 // Global Error Handler
