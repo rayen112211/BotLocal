@@ -1,6 +1,5 @@
 // @ts-nocheck
 import { Router } from 'express';
-import twilio from 'twilio';
 import prisma from '../lib/prisma';
 import { generateReply } from '../services/ai';
 
@@ -35,7 +34,7 @@ router.post('/webhook', async (req, res) => {
         try {
             const accountSid = process.env.TWILIO_ACCOUNT_SID || '';
             const authToken = process.env.TWILIO_AUTH_TOKEN || '';
-            const client = twilio(accountSid, authToken);
+            const client = require('twilio')(accountSid, authToken);
             const fromNumber = business.twilioPhone || process.env.TWILIO_PHONE_NUMBER || '';
             const formattedFrom = fromNumber.startsWith('whatsapp:') ? fromNumber : `whatsapp:${fromNumber}`;
 
@@ -115,7 +114,7 @@ router.post('/webhook', async (req, res) => {
             try {
                 const accountSid = process.env.TWILIO_ACCOUNT_SID || '';
                 const authToken = process.env.TWILIO_AUTH_TOKEN || '';
-                const client = twilio(accountSid, authToken);
+                const client = require('twilio')(accountSid, authToken);
                 const fromNumber = business.twilioPhone || process.env.TWILIO_PHONE_NUMBER || '';
                 const formattedFrom = fromNumber.startsWith('whatsapp:') ? fromNumber : `whatsapp:${fromNumber}`;
 
