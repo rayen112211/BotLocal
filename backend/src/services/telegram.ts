@@ -45,6 +45,12 @@ export async function handleTelegramWebhook(token: string, body: any) {
 
             console.log(`[TELEGRAM] Message from ${customerId} to business ${business.id}: ${incomingText}`);
 
+            // 1. Limit Check
+            if (business.plan === 'Starter' && business.messageCount >= 500) {
+                await bot.telegram.sendMessage(customerId, "Please contact the business directly. (Message limit reached)");
+                return;
+            }
+
             // Skip handling if AI is disabled (assuming we can check conversation settings later, 
             // but for simplicity, let's just generate the reply if it doesn't match a quick stop).
 
