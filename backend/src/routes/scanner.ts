@@ -91,69 +91,39 @@ router.post('/scan', authenticate, async (req: AuthRequest, res) => {
             });
         }
 
-        console.log(`[SCANNER] Starting multi-page scan for URL: ${url}`);
+        console.log(`[SCANNER] Requesting Jina Reader for URL: ${url}`);
 
-        const visited = new Set<string>();
-        const toVisit = [url];
-        let totalContent = "";
-        const maxPages = 5;
-
-        // Recursive crawl logic
-        while (toVisit.length > 0 && visited.size < maxPages) {
-            const currentUrl = toVisit.shift()!;
-            if (visited.has(currentUrl)) continue;
-
-            try {
-                console.log(`[SCANNER] Crawling (${visited.size + 1}/${maxPages}): ${currentUrl}`);
-                const { data } = await axios.get(currentUrl, {
-                    timeout: 8000,
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-                });
-
-                const $ = cheerio.load(data);
-
-                // 1. Extract and Clean Content
-                const pageTitle = $('title').text().trim();
-                $('script, style, noscript, iframe, img, svg, meta, link, button, footer, nav').remove();
-                const pageText = $('body').text().replace(/\s+/g, ' ').trim();
-
-                if (pageText.length > 200) {
-                    totalContent += `\n\n--- Page: ${pageTitle} (${currentUrl}) ---\n${pageText}`;
+        let finalContent = "";
+        try {
+            const jinaUrl = `https://r.jina.ai/${url}`;
+            const response = await fetch(jinaUrl, {
+                headers: {
+                    'Accept': 'text/plain',
+                    'User-Agent': 'BotLocal/1.0'
                 }
+            });
 
-                visited.add(currentUrl);
-
-                // 2. Discover Links (Same domain only)
-                const baseUrl = new URL(url);
-                $('a[href]').each((_, el) => {
-                    try {
-                        let href = $(el).attr('href');
-                        if (!href) return;
-
-                        const absoluteUrl = new URL(href, currentUrl);
-                        if (absoluteUrl.hostname === baseUrl.hostname && !visited.has(absoluteUrl.toString())) {
-                            // Avoid non-html or media
-                            if (!absoluteUrl.pathname.match(/\.(jpg|png|pdf|zip|css|js)$/i)) {
-                                toVisit.push(absoluteUrl.toString());
-                            }
-                        }
-                    } catch (e) { }
-                });
-            } catch (err: any) {
-                console.warn(`[SCANNER] Failed to crawl ${currentUrl}: ${err.message}`);
-                visited.add(currentUrl); // Mark as tried
+            if (!response.ok) {
+                throw new Error(`Jina API returned ${response.status}`);
             }
-        }
 
-        const finalContent = totalContent.trim().slice(0, 100000); // 100k cap
+            const rawContent = await response.text();
+            // Jina returns markdown, let's limit it to 100k chars
+            finalContent = rawContent.trim().slice(0, 100000);
 
-        if (!finalContent || finalContent.length < 50) {
+            if (!finalContent || finalContent.length < 50) {
+                return res.status(400).json({
+                    error: 'Could not extract meaningful content from this website. Please paste your business info manually.'
+                });
+            }
+        } catch (err: any) {
+            console.error(`[SCANNER] Jina Reader failed: ${err.message}`);
             return res.status(400).json({
-                error: 'No meaningful content found on this website. Make sure the URL is correct.'
+                error: 'Failed to scan website. It might be heavily protected or unavailable. Please paste your business info manually.'
             });
         }
 
-        console.log(`[SCANNER] Multi-page scan complete. Total pages: ${visited.size}, Total content: ${finalContent.length} chars`);
+        console.log(`[SCANNER] Jina scan complete. Total content: ${finalContent.length} chars`);
 
         // Save to database
         const kb = await prisma.knowledgeBase.create({
@@ -161,7 +131,7 @@ router.post('/scan', authenticate, async (req: AuthRequest, res) => {
                 businessId: businessId!,
                 url, // Main entry URL
                 content: finalContent,
-                pagesScanned: visited.size
+                pagesScanned: 1
             }
         });
 
@@ -170,9 +140,9 @@ router.post('/scan', authenticate, async (req: AuthRequest, res) => {
             entry: {
                 id: kb.id,
                 url: kb.url,
-                pagesScanned: visited.size,
+                pagesScanned: 1, // Jina summarizes the page structure automatically
                 contentLength: kb.content.length,
-                message: `Website scanned successfully! We've analyzed ${visited.size} pages to build your bot's brain.`
+                message: `Website scanned successfully! We've extracted your business information.`
             }
         });
     } catch (error: any) {
@@ -271,20 +241,24 @@ router.post('/:id/rescan', authenticate, async (req: AuthRequest, res) => {
             return res.status(404).json({ error: 'Knowledge base entry not found' });
         }
 
-        // Fetch and parse again
-        const { data } = await axios.get(entry.url!, {
-            timeout: 10000,
+        // Fetch from Jina AI
+        const jinaUrl = `https://r.jina.ai/${entry.url}`;
+        const response = await fetch(jinaUrl, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                'Accept': 'text/plain',
+                'User-Agent': 'BotLocal/1.0'
             }
         });
 
-        const $ = cheerio.load(data);
-        $('script, style, noscript, iframe, img, svg, meta, link, button').remove();
-        const textContent = $('body').text().replace(/\s+/g, ' ').trim().slice(0, 50000);
+        if (!response.ok) {
+            throw new Error(`Jina API returned ${response.status}`);
+        }
+
+        const rawContent = await response.text();
+        const textContent = rawContent.trim().slice(0, 50000);
 
         if (!textContent || textContent.length < 50) {
-            return res.status(400).json({ error: 'No content found after rescan' });
+            return res.status(400).json({ error: 'No meaningful content found after rescan.' });
         }
 
         const updated = await prisma.knowledgeBase.update({
