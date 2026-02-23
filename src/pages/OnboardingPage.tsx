@@ -23,6 +23,7 @@ export default function OnboardingPage() {
   const [industry, setIndustry] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSandbox, setIsSandbox] = useState(true);
 
   // For Step 4 (Test Message)
   const [isListening, setIsListening] = useState(false);
@@ -79,16 +80,22 @@ export default function OnboardingPage() {
 
   const handleConnectWhatsAppSandbox = async () => {
     setIsSaving(true);
+    setIsSandbox(true);
     try {
       await businessAPI.update({
         twilioPhone: "+14155238886"
       });
       setStep(4);
-    } catch (e) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to save sandbox number" });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.response?.data?.error || "Failed to save sandbox number" });
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleOwnNumberSetup = () => {
+    setIsSandbox(false);
+    setStep(4);
   };
 
   // Simulate listening for a test message
@@ -219,34 +226,62 @@ export default function OnboardingPage() {
             <p className="text-muted-foreground text-center mb-8">How do you want to connect your bot to WhatsApp right now?</p>
 
             <div className="grid gap-4 mb-8">
-              <button
-                onClick={handleConnectWhatsAppSandbox}
-                disabled={isSaving}
-                className="flex items-start gap-4 p-6 rounded-2xl border-2 transition-all duration-300 border-primary bg-primary/5 ring-4 ring-primary/10 shadow-md text-left"
-              >
-                <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex flex-shrink-0 items-center justify-center shadow-lg">
-                  <Phone className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="font-bold text-lg text-foreground">I'm testing (Sandbox)</p>
-                    <span className="bg-white text-primary text-xs font-bold px-2 py-1 border border-primary/20 rounded-md">FREE</span>
+              {/* Option A: FREE SANDBOX TEST */}
+              <div className="flex flex-col gap-4 p-6 rounded-2xl border-2 transition-all duration-300 border-primary bg-primary/5 ring-4 ring-primary/10 shadow-md">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex flex-shrink-0 items-center justify-center shadow-lg">
+                    <Phone className="w-6 h-6" />
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed font-medium">Use our shared testing number (+1 415 523 8886) to try out your bot immediately without creating a Twilio account.</p>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg text-foreground">🆓 Test with Sandbox (Free)</h3>
+                  </div>
                 </div>
-              </button>
+                <div className="text-sm text-foreground bg-white/50 p-3 rounded-xl border border-primary/10">
+                  <p><strong>Phone:</strong> +14155238886</p>
+                  <p><strong>Code:</strong> join afternoon-give</p>
+                </div>
+                <p className="text-sm font-medium text-amber-600">⚠️ Limited to 1 test business. First come, first served.</p>
+                <Button
+                  onClick={handleConnectWhatsAppSandbox}
+                  disabled={isSaving}
+                  className="w-full text-md font-bold"
+                >
+                  {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : "Use Sandbox"}
+                </Button>
+              </div>
 
-              <div className="relative p-6 rounded-2xl border-2 border-dashed border-muted-foreground/30 bg-muted/10 opacity-70">
-                <div className="absolute top-4 right-4 bg-muted text-muted-foreground text-[10px] font-bold px-2 py-1 rounded">COMING SOON / ADVANCED</div>
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-muted-foreground/20 text-muted-foreground flex flex-shrink-0 items-center justify-center">
+              {/* Option B: REAL BUSINESS (PAID) */}
+              <div className="flex flex-col gap-4 p-6 rounded-2xl border-2 border-dashed border-muted-foreground/30 bg-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-green-100 text-green-700 flex flex-shrink-0 items-center justify-center">
                     <Building2 className="w-6 h-6" />
                   </div>
-                  <div>
-                    <p className="font-bold text-lg text-foreground mb-1">I'm ready for real customers</p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">Connect your own Twilio account and phone number. Requires business verification with Meta.</p>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg text-foreground">💰 Get Your Own Number (~$1/month)</h3>
                   </div>
                 </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  For real customers. No join codes needed.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 text-md font-bold border-green-200 hover:bg-green-50 text-green-700"
+                    onClick={() => window.open("https://www.twilio.com/console/sms/phone-numbers", "_blank")}
+                  >
+                    Buy Twilio Number
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="text-md font-bold"
+                    onClick={handleOwnNumberSetup}
+                  >
+                    I have it
+                  </Button>
+                </div>
+                <p className="text-xs text-center text-muted-foreground uppercase tracking-widest font-bold">
+                  We'll guide you after you get your number
+                </p>
               </div>
             </div>
 
@@ -271,8 +306,18 @@ export default function OnboardingPage() {
                 <h2 className="text-2xl font-bold mb-4">Send a Test Message</h2>
                 <div className="bg-muted/30 p-6 rounded-2xl mb-8 border border-border">
                   <p className="text-lg font-medium text-foreground mb-2">1. Open WhatsApp</p>
-                  <p className="text-lg font-medium text-foreground mb-4">2. Send the message <strong>join afternoon-give</strong> to:</p>
-                  <div className="text-3xl font-black text-primary tracking-wider bg-white py-3 rounded-xl border shadow-sm">+1 415 523 8886</div>
+
+                  {isSandbox ? (
+                    <>
+                      <p className="text-lg font-medium text-foreground mb-4">2. Send the message <strong>join afternoon-give</strong> to:</p>
+                      <div className="text-3xl font-black text-primary tracking-wider bg-white py-3 rounded-xl border shadow-sm">+1 415 523 8886</div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-lg font-medium text-foreground mb-4">2. Message your own Twilio number.</p>
+                      <div className="text-xl font-bold text-primary tracking-wider bg-white py-3 px-2 rounded-xl border shadow-sm">Your AI will respond in seconds!</div>
+                    </>
+                  )}
                 </div>
 
                 <Button

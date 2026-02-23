@@ -34,6 +34,22 @@ const updateBusiness = async (req: AuthRequest, res: any) => {
             return res.status(400).json({ error: 'Invalid business data', details: parsed.error.flatten() });
         }
 
+        // Check if trying to use the shared sandbox number
+        if (parsed.data.twilioPhone === '+14155238886') {
+            const existingBusiness = await prisma.business.findFirst({
+                where: {
+                    twilioPhone: '+14155238886',
+                    id: { not: businessId }
+                }
+            });
+
+            if (existingBusiness) {
+                return res.status(400).json({
+                    error: "Sandbox number already in use. Buy your own Twilio number at https://www.twilio.com"
+                });
+            }
+        }
+
         const updated = await prisma.business.update({
             where: { id: businessId },
             data: parsed.data,
