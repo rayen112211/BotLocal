@@ -3,7 +3,7 @@ import prisma from '../lib/prisma';
 import { generateReply } from './ai';
 
 // Store initialized bots to avoid recreating them on every request
-const activeBots: Record<string, Telegraf> = {};
+export const activeBots: Record<string, Telegraf> = {};
 
 export async function setupTelegramWebhook(token: string, backendUrl: string) {
     try {

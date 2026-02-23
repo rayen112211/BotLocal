@@ -26,8 +26,13 @@ const limiter = rateLimit({
     message: { error: 'Too many requests, please try again later.' }
 });
 
-// Apply rate limiter to all routes
-app.use(limiter);
+// Apply rate limiter to all routes EXCEPT webhooks which can have burst traffic from single IPs (like Stripe or Telegram)
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api/telegram') || req.path.startsWith('/api/stripe')) {
+        return next();
+    }
+    return limiter(req, res, next);
+});
 
 app.use(cors({
     origin: frontendUrl || '*',

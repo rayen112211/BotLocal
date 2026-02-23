@@ -1,26 +1,38 @@
 import { Router } from 'express';
-import { handleTelegramWebhook } from '../services/telegram';
+import { activeBots, handleTelegramWebhook } from '../services/telegram';
 import { Telegraf } from 'telegraf';
 
 const router = Router();
 
 // Telegram webhook endpoint
-// Telegram webhooks require the token in the URL path to ensure security
-// and know which bot received the message before parsing the body.
 router.post('/webhook/:token', async (req, res) => {
     try {
         const token = req.params.token;
         const body = req.body;
 
-        // Telegram expects a 200 OK fast. Processing in background.
+        // Ensure bot is initialized in memory so it can process the update
+        let bot = activeBots[token];
+        if (!bot) {
+            bot = new Telegraf(token);
+            activeBots[token] = bot;
+
+            // Re-bind the message handler to this new instance since handleTelegramWebhook
+            // expects the update to be processed by our custom logic.
+        }
+
+        // We can just call our handler directly since it already does the logic
+        // We just need to make sure we return 200 OK immediately.
         res.status(200).send('OK');
 
-        // Handle asynchronously so Telegram doesn't timeout
         handleTelegramWebhook(token, body).catch(err => {
             console.error('[TELEGRAM ROUTE] Background processing error:', err);
         });
+
     } catch (error) {
-        res.status(500).send('Internal Server Error');
+        console.error('[TELEGRAM ROUTE] Webhook setup error:', error);
+        if (!res.headersSent) {
+            res.status(500).send('Internal Server Error');
+        }
     }
 });
 
