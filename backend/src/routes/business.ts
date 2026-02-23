@@ -40,10 +40,10 @@ const updateBusiness = async (req: AuthRequest, res: any) => {
         // Setup Telegram Webhook if token is provided
         if (parsed.data.telegramBotToken) {
             try {
-                // Determine backend URL dynamically. Render uses x-forwarded-proto
-                const protocol = (req as any).headers['x-forwarded-proto'] || (req as any).protocol;
-                const host = (req as any).get('host');
-                const backendUrl = `${protocol}://${host}`;
+                const backendUrl = process.env.BACKEND_URL;
+                if (!backendUrl) {
+                    throw new Error("BACKEND_URL environment variable is missing. Webhooks cannot be registered.");
+                }
 
                 // Set the webhook with Telegram
                 await setupTelegramWebhook(parsed.data.telegramBotToken, backendUrl);
