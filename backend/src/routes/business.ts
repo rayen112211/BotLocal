@@ -41,8 +41,8 @@ const updateBusiness = async (req: AuthRequest, res: any) => {
         if (parsed.data.telegramBotToken) {
             try {
                 // Determine backend URL dynamically. Render uses x-forwarded-proto
-                const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-                const host = req.get('host');
+                const protocol = (req as any).headers['x-forwarded-proto'] || (req as any).protocol;
+                const host = (req as any).get('host');
                 const backendUrl = `${protocol}://${host}`;
 
                 // Set the webhook with Telegram

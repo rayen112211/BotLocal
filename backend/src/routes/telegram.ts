@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { handleTelegramWebhook } from '../services/telegram';
+import { Telegraf } from 'telegraf';
 
 const router = Router();
 
@@ -19,8 +20,19 @@ router.post('/webhook/:token', async (req, res) => {
             console.error('[TELEGRAM ROUTE] Background processing error:', err);
         });
     } catch (error) {
-        console.error('[TELEGRAM ROUTE] Webhook setup error:', error);
         res.status(500).send('Internal Server Error');
+    }
+});
+
+// Debug endpoint to check webhook status for a given token
+router.get('/status/:token', async (req, res) => {
+    try {
+        const token = req.params.token;
+        const bot = new Telegraf(token);
+        const info = await bot.telegram.getWebhookInfo();
+        res.json(info);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
     }
 });
 
