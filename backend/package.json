@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "db:push": "prisma db push --accept-data-loss",
     "db:seed": "ts-node seed.ts",
     "setup": "npm install && npm run db:push && npm run db:seed"
