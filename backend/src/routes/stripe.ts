@@ -2,16 +2,21 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import Stripe from 'stripe';
 
+import { authenticate, AuthRequest } from '../middleware/authMiddleware';
+
 const router = Router();
 const prisma = new PrismaClient();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: '2026-01-28.clover',
 });
 
 // Create a checkout session
-router.post('/create-checkout-session', async (req, res) => {
+router.post('/create-checkout-session', authenticate, async (req: AuthRequest, res) => {
     try {
-        const { businessId, planId } = req.body;
+        const { businessId } = req; // Derived from JWT
+        const { planId } = req.body;
+
+        if (!businessId) return res.status(401).json({ error: 'Unauthorized' });
 
         const business = await prisma.business.findUnique({ where: { id: businessId } });
         if (!business) return res.status(404).json({ error: 'Business not found' });

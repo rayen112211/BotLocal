@@ -7,129 +7,128 @@ const router = Router();
 const prisma = new PrismaClient();
 
 router.post('/webhook', async (req, res) => {
-    try {
-        const { Body, From, To } = req.body;
-        // Twilio sends From as "whatsapp:+1234567890" and To as "whatsapp:+0987654321"
+    const { Body, From, To } = req.body;
 
-        if (!Body || !From || !To) {
-            console.error('[WEBHOOK] Missing Twilio parameters:', req.body);
-            return res.status(400).send('Missing Twilio parameters');
-        }
+    // 1. Immediate Validation & Response
+    if (!Body || !From || !To) {
+        return res.status(200).send('Missing parameters'); // Still send 200 to Twilio to stop retries
+    }
 
-        const customerPhone = From.replace('whatsapp:', '');
-        const twilioPhone = To.replace('whatsapp:', '');
+    const customerPhone = From.replace('whatsapp:', '');
+    const twilioPhone = To.replace('whatsapp:', '');
 
-        // 1. Identify Business by Twilio phone number
-        // In Sandbox, "To" is often the Sandbox number. 
-        // In Production, "To" will be the unique Business Twilio number.
-        let business = await prisma.business.findFirst({
-            where: { twilioPhone: twilioPhone }
-        });
+    // Identify Business strictly by Twilio phone number
+    const business = await prisma.business.findFirst({
+        where: { twilioPhone: twilioPhone }
+    });
 
-        if (!business) {
-            // Fallback: If we can't find by phone, try finding by name if it's the only one 
-            // (Convenient for Sandbox testing with multiple businesses)
-            business = await prisma.business.findFirst();
-            if (!business) {
-                console.error('[WEBHOOK] FATAL: No businesses exist in the database!');
-                return res.status(404).send('Business not found');
-            }
-            console.log(`[WEBHOOK] Using Fallback Business: ${business.name} for To: ${twilioPhone} `);
-        } else {
-            console.log(`[WEBHOOK] Identified Business: ${business.name} (${business.id})`);
-        }
+    if (!business) {
+        console.log(`[WEBHOOK] No business found for number: ${twilioPhone}. Ignoring message.`);
+        return res.status(200).send('OK'); // Do nothing, but return 200
+    }
 
-        // 2. Limit Check
-        if (business.plan === 'Starter' && business.messageCount >= 500) {
-            console.log('[WEBHOOK] Starter plan limit reached for:', customerPhone);
+    // Respond to Twilio immediately to meet the <5s requirement
+    res.status(200).send('OK');
+
+    // 2. Asynchronous Background processing
+    (async () => {
+        try {
             const accountSid = process.env.TWILIO_ACCOUNT_SID || '';
             const authToken = process.env.TWILIO_AUTH_TOKEN || '';
             const client = twilio(accountSid, authToken);
-            await client.messages.create({
-                body: "Please contact the business directly.",
-                from: `whatsapp:${business.twilioPhone} `,
-                to: `whatsapp:${customerPhone} `
+            const fromNumber = business.twilioPhone || process.env.TWILIO_PHONE_NUMBER || '';
+            const formattedFrom = fromNumber.startsWith('whatsapp:') ? fromNumber : `whatsapp:${fromNumber}`;
+
+            // A. Limit Check
+            if (business.plan === 'Starter' && business.messageCount >= 500) {
+                await client.messages.create({
+                    body: "Please contact the business directly.",
+                    from: formattedFrom,
+                    to: `whatsapp:${customerPhone}`
+                });
+                return;
+            }
+
+            // B. Get/Update Conversation
+            let conv = await prisma.conversation.findFirst({
+                where: { businessId: business.id, customerPhone }
             });
-            return res.status(200).send('Limit reached');
-        }
 
-        // 3. Update Conversation History & Check AI Status
-        let conv = await prisma.conversation.findFirst({
-            where: { businessId: business.id, customerPhone }
-        });
+            let msgs = [];
+            if (conv && conv.messages) {
+                try {
+                    msgs = JSON.parse(conv.messages);
+                } catch (e) {
+                    msgs = [];
+                }
+            }
+            msgs.push({ role: 'user', content: Body });
 
-        let msgs = [];
-        if (conv && conv.messages) {
-            msgs = JSON.parse(conv.messages);
-        }
-        msgs.push({ role: 'user', content: Body });
+            // C. AI Processing
+            let aiResponse = "";
+            if (conv && !conv.isAiEnabled) {
+                console.log('[WEBHOOK] AI Disabled for:', customerPhone);
+            } else {
+                aiResponse = await generateReply(business.id, customerPhone, Body);
+                if (aiResponse) {
+                    msgs.push({ role: 'assistant', content: aiResponse });
+                }
+            }
 
-        // Generate AI Reply if enabled
-        let aiResponse = "";
-        if (conv && !conv.isAiEnabled) {
-            console.log('[WEBHOOK] AI is DISABLED for this conversation. Skipping reply generation.');
-        } else {
-            console.log('[WEBHOOK] Generating AI reply for:', customerPhone);
-            aiResponse = await generateReply(business.id, customerPhone, Body);
-            console.log('[WEBHOOK] AI Reply generated successfully:', aiResponse?.substring(0, 50) + "...");
+            // D. Database Sync
+            if (conv) {
+                await prisma.conversation.update({
+                    where: { id: conv.id },
+                    data: {
+                        messages: JSON.stringify(msgs),
+                        updatedAt: new Date()
+                    }
+                });
+            } else {
+                await prisma.conversation.create({
+                    data: {
+                        businessId: business.id,
+                        customerPhone,
+                        messages: JSON.stringify(msgs)
+                    }
+                });
+            }
+
+            // E. Dispatch
             if (aiResponse) {
-                msgs.push({ role: 'assistant', content: aiResponse });
+                await client.messages.create({
+                    body: aiResponse,
+                    from: formattedFrom,
+                    to: `whatsapp:${customerPhone}`
+                });
+
+                await prisma.business.update({
+                    where: { id: business.id },
+                    data: { messageCount: { increment: 1 } }
+                });
+            }
+
+        } catch (error: any) {
+            console.error('[WEBHOOK ASYNC ERROR]:', error.message);
+
+            // AI Crash Fallback (Mandatory)
+            try {
+                const accountSid = process.env.TWILIO_ACCOUNT_SID || '';
+                const authToken = process.env.TWILIO_AUTH_TOKEN || '';
+                const client = twilio(accountSid, authToken);
+                const fromNumber = business.twilioPhone || process.env.TWILIO_PHONE_NUMBER || '';
+                const formattedFrom = fromNumber.startsWith('whatsapp:') ? fromNumber : `whatsapp:${fromNumber}`;
+
+                await client.messages.create({
+                    body: "Thank you for your message! We are currently unavailable, please contact us directly.",
+                    from: formattedFrom,
+                    to: `whatsapp:${customerPhone}`
+                });
+            } catch (fallbackError: any) {
+                console.error('[FATAL FALLBACK ERROR]:', fallbackError.message);
             }
         }
-
-        if (conv) {
-            conv = await prisma.conversation.update({
-                where: { id: conv.id },
-                data: {
-                    messages: JSON.stringify(msgs),
-                    updatedAt: new Date()
-                }
-            });
-        } else {
-            conv = await prisma.conversation.create({
-                data: {
-                    businessId: business.id,
-                    customerPhone,
-                    messages: JSON.stringify(msgs)
-                }
-            });
-        }
-
-        // 4. Send WhatsApp Message (Only if AI generated a response)
-        if (!aiResponse) return res.status(200).send('AI disabled or no response');
-
-        const accountSid = process.env.TWILIO_ACCOUNT_SID || '';
-        const authToken = process.env.TWILIO_AUTH_TOKEN || '';
-        const client = twilio(accountSid, authToken);
-
-        // Always try to use the specific business's Twilio number, fallback to ENV
-        const fromNumber = business.twilioPhone || process.env.TWILIO_PHONE_NUMBER || '';
-        const formattedFrom = fromNumber.startsWith('whatsapp:') ? fromNumber : `whatsapp:${fromNumber} `;
-
-        console.log('[WEBHOOK] Dispatching Twilio message from:', formattedFrom);
-
-        const messagePayload = await client.messages.create({
-            body: aiResponse,
-            from: formattedFrom,
-            to: `whatsapp:${customerPhone} `
-        });
-
-        console.log('[WEBHOOK] Successfully dispatched to Twilio SID:', messagePayload.sid);
-
-        // Increment Usage
-        await prisma.business.update({
-            where: { id: business.id },
-            data: { messageCount: { increment: 1 } }
-        });
-
-        res.status(200).send('Success');
-    } catch (error: any) {
-        console.error('[WEBHOOK ERROR] WhatsApp Webhook Failed:', error.message);
-        if (error.response) {
-            console.error('[WEBHOOK ERROR PARAMS]', error.response?.data);
-        }
-        res.status(500).send('Webhook failed');
-    }
+    })();
 });
 
 export default router;
