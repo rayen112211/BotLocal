@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import express, { Router, Request, Response } from 'express';
 import Stripe from 'stripe';
 
 import prisma from '../lib/prisma';
@@ -22,10 +22,14 @@ const PLAN_PRICES: Record<string, { priceId: string; name: string; messages: num
 // CREATE CHECKOUT SESSION - Frontend calls this
 // ===========================================
 
-router.post('/create-checkout-session', authenticate, async (req: AuthRequest, res: Response) => {
+router.post('/create-checkout-session', express.json(), authenticate, async (req: AuthRequest, res: Response) => {
     try {
         const { businessId } = req;
-        const { planId } = req.body;
+        const { planId } = req.body || {};
+
+        if (!planId || !['starter', 'pro', 'agency', 'enterprise'].includes(planId)) {
+            return res.status(400).json({ error: 'Invalid plan' });
+        }
 
         if (!businessId) return res.status(401).json({ error: 'Unauthorized' });
 
@@ -149,7 +153,7 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
                 const subscription = await stripe.subscriptions.retrieve(subscriptionId);
                 const subscriptionItem = subscription.items.data[0];
                 const priceId = subscriptionItem.price.id;
-                
+
                 // Map price ID to plan name
                 if (priceId === process.env.STRIPE_AGENCY_PRICE_ID || priceId === 'price_agency_monthly') {
                     planName = 'Agency';
