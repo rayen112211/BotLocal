@@ -1,197 +1,307 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, ArrowRight, ArrowLeft, CheckCircle2, Globe, Phone, CreditCard, Building2, Loader2 } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { MessageSquare, CheckCircle2, Loader, AlertCircle, Building2, Utensils, ShoppingBag, Home, Stethoscope, Hammer, Sparkles, Smile, ShieldCheck, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
-const steps = [
-  { label: "Business Info", icon: Building2 },
-  { label: "Website Scanner", icon: Globe },
-  { label: "WhatsApp", icon: Phone },
-  { label: "Choose Plan", icon: CreditCard },
+const INDUSTRIES = [
+  { id: "Restaurant", icon: Utensils, label: "Restaurant & Cafe", color: "bg-orange-500" },
+  { id: "Service", icon: Hammer, label: "Home Services", color: "bg-blue-500" },
+  { id: "Retail", icon: ShoppingBag, label: "Retail & E-commerce", color: "bg-purple-500" },
+  { id: "Real Estate", icon: Home, label: "Real Estate", color: "bg-green-500" },
+  { id: "Health", icon: Stethoscope, label: "Health & Wellness", color: "bg-pink-500" },
+  { id: "Other", icon: Building2, label: "Other Business", color: "bg-slate-500" },
 ];
 
-const categories = ["Restaurant", "Barbershop", "Clinic", "Gym", "Lawyer", "Real Estate", "Other"];
-const languages = ["English", "Arabic", "French", "Italian"];
-
-const plans = [
-  { name: "Starter", price: 29, features: ["500 messages/month", "1 language", "Basic analytics"] },
-  { name: "Pro", price: 59, features: ["Unlimited messages", "All languages", "Full analytics", "Review automation"] },
-  { name: "Agency", price: 99, features: ["Everything in Pro", "Multiple locations", "White-label", "API access"] },
+const PERSONALITIES = [
+  { id: "Friendly", icon: Smile, label: "Friendly & Warm", description: "Approachable and kind, treats every customer like a friend." },
+  { id: "Professional", icon: ShieldCheck, label: "Professional & Precise", description: "Efficient, formal, and strictly focused on business information." },
+  { id: "Creative", icon: Sparkles, label: "Creative & Energetic", description: "Fun, uses emojis, and adds a bit of flair to every reply." },
+  { id: "Concise", icon: Zap, label: "Fast & Concise", description: "Short, direct-to-the-point answers for busy customers." },
 ];
 
 export default function OnboardingPage() {
-  const [step, setStep] = useState(0);
-  const [scanning, setScanning] = useState(false);
-  const [scanDone, setScanDone] = useState(false);
-  const [testing, setTesting] = useState(false);
+  const [step, setStep] = useState(1);
+  const [website, setWebsite] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [personality, setPersonality] = useState("Professional");
+  const [isScanning, setIsScanning] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const { business, isLoading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const [form, setForm] = useState({
-    businessName: "", category: "", city: "", country: "",
-    primaryLanguage: "", secondaryLanguage: "", websiteUrl: "", manualInfo: "",
-    twilioSid: "", twilioToken: "", whatsappNumber: "", plan: "starter",
-  });
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
-  const update = (key: string, value: string) => setForm((p) => ({ ...p, [key]: value }));
+  const handleScanWebsite = async () => {
+    if (!website) {
+      toast({ variant: "destructive", title: "Error", description: "Please enter a website URL" });
+      return;
+    }
 
-  const handleScan = () => {
-    setScanning(true);
-    setTimeout(() => { setScanning(false); setScanDone(true); }, 3000);
+    setIsScanning(true);
+
+    try {
+      const res = await fetch("http://localhost:3001/api/scanner/scan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ url: website, businessId: business?.id })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to scan website");
+      }
+
+      toast({
+        title: "Website scanned!",
+        description: "Your bot now knows about your business."
+      });
+
+      setStep(3);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Scan failed",
+        description: error.message
+      });
+    } finally {
+      setIsScanning(false);
+    }
   };
 
-  const handleTestConnection = () => {
-    setTesting(true);
-    setTimeout(() => setTesting(false), 2000);
+  const handleUpdateProfile = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch(`http://localhost:3001/api/business/${business?.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({
+          industry,
+          botPersonality: personality,
+          websiteUrl: website
+        })
+      });
+
+      if (!res.ok) throw new Error("Failed to save profile");
+
+      setStep(4);
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleFinish = () => navigate("/dashboard");
+  const steps = [
+    { number: 1, title: "Industry" },
+    { number: 2, title: "Training" },
+    { number: 3, title: "Personality" },
+    { number: 4, title: "Go Live" }
+  ];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 h-16 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-            <MessageSquare className="w-4 h-4 text-primary-foreground" />
+    <div className="min-h-screen bg-[#fafafa] flex items-center justify-center p-4">
+      <div className="w-full max-w-2xl">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 border border-primary/20 shadow-sm">
+            <Zap className="w-8 h-8 text-primary fill-primary/20" />
           </div>
-          <span className="text-lg font-bold text-foreground">BotLocal</span>
+          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Create Your AI Employee</h1>
+          <p className="text-muted-foreground mt-1">Let's build a bot that sounds just like your best staff member.</p>
         </div>
-      </header>
 
-      {/* Progress */}
-      <div className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between max-w-2xl mx-auto">
-            {steps.map((s, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
-                  i < step ? "bg-success text-success-foreground" : i === step ? "gradient-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}>
-                  {i < step ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
-                </div>
-                <span className={`hidden sm:inline text-sm ${i === step ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-                  {s.label}
-                </span>
-                {i < steps.length - 1 && <div className={`w-8 sm:w-16 h-0.5 mx-2 ${i < step ? "bg-success" : "bg-border"}`} />}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="container mx-auto px-4 py-12 max-w-2xl">
-        {step === 0 && (
-          <div className="space-y-6 animate-fade-up">
-            <div><h2 className="text-2xl font-bold text-foreground">Tell us about your business</h2><p className="text-muted-foreground mt-1">This helps the AI understand your business.</p></div>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div><Label>Business Name</Label><Input className="mt-1.5" value={form.businessName} onChange={(e) => update("businessName", e.target.value)} placeholder="My Business" /></div>
-              <div><Label>Category</Label><Select value={form.category} onValueChange={(v) => update("category", v)}><SelectTrigger className="mt-1.5"><SelectValue placeholder="Select..." /></SelectTrigger><SelectContent>{categories.map((c) => <SelectItem key={c} value={c.toLowerCase()}>{c}</SelectItem>)}</SelectContent></Select></div>
-              <div><Label>City</Label><Input className="mt-1.5" value={form.city} onChange={(e) => update("city", e.target.value)} placeholder="New York" /></div>
-              <div><Label>Country</Label><Input className="mt-1.5" value={form.country} onChange={(e) => update("country", e.target.value)} placeholder="United States" /></div>
-              <div><Label>Primary Language</Label><Select value={form.primaryLanguage} onValueChange={(v) => update("primaryLanguage", v)}><SelectTrigger className="mt-1.5"><SelectValue placeholder="Select..." /></SelectTrigger><SelectContent>{languages.map((l) => <SelectItem key={l} value={l.toLowerCase()}>{l}</SelectItem>)}</SelectContent></Select></div>
-              <div><Label>Secondary Language (optional)</Label><Select value={form.secondaryLanguage} onValueChange={(v) => update("secondaryLanguage", v)}><SelectTrigger className="mt-1.5"><SelectValue placeholder="Select..." /></SelectTrigger><SelectContent>{languages.map((l) => <SelectItem key={l} value={l.toLowerCase()}>{l}</SelectItem>)}</SelectContent></Select></div>
-            </div>
-          </div>
-        )}
-
-        {step === 1 && (
-          <div className="space-y-6 animate-fade-up">
-            <div><h2 className="text-2xl font-bold text-foreground">Scan your website</h2><p className="text-muted-foreground mt-1">We'll extract services, prices, hours, and FAQs automatically.</p></div>
-            <div>
-              <Label>Website URL</Label>
-              <div className="flex gap-2 mt-1.5">
-                <Input value={form.websiteUrl} onChange={(e) => update("websiteUrl", e.target.value)} placeholder="https://mybusiness.com" className="flex-1" />
-                <Button variant="hero" onClick={handleScan} disabled={scanning}>
-                  {scanning ? <><Loader2 className="w-4 h-4 animate-spin" /> Scanning...</> : "Scan My Website"}
-                </Button>
-              </div>
-            </div>
-            {scanning && (
-              <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
-                <div className="flex items-center gap-3 mb-3"><Loader2 className="w-5 h-5 animate-spin text-primary" /><span className="text-sm font-medium text-foreground">Scanning your website...</span></div>
-                <div className="w-full h-2 rounded-full bg-muted overflow-hidden"><div className="h-full gradient-primary rounded-full animate-pulse-soft" style={{ width: "60%" }} /></div>
-              </div>
-            )}
-            {scanDone && (
-              <div className="p-4 rounded-xl bg-success/5 border border-success/20 space-y-2">
-                <div className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-success" /><span className="font-medium text-foreground">Website scanned successfully!</span></div>
-                <ul className="text-sm text-muted-foreground space-y-1 ml-7">
-                  <li>✓ 12 services found</li><li>✓ Business hours extracted</li><li>✓ 8 FAQs detected</li><li>✓ Contact info saved</li>
-                </ul>
-              </div>
-            )}
-            <div className="border-t border-border pt-4">
-              <p className="text-sm text-muted-foreground mb-2">Or add your business info manually:</p>
-              <Textarea value={form.manualInfo} onChange={(e) => update("manualInfo", e.target.value)} placeholder="Describe your services, prices, working hours..." rows={4} />
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-6 animate-fade-up">
-            <div><h2 className="text-2xl font-bold text-foreground">Connect WhatsApp</h2><p className="text-muted-foreground mt-1">Connect via Twilio WhatsApp Sandbox for testing.</p></div>
-            <div className="p-4 rounded-xl bg-info/5 border border-info/20 text-sm text-muted-foreground space-y-2">
-              <p className="font-medium text-foreground">How to set up:</p>
-              <ol className="list-decimal ml-5 space-y-1">
-                <li>Go to <span className="font-medium text-primary">twilio.com</span> and create a free account</li>
-                <li>Navigate to Messaging → Try it Out → WhatsApp Sandbox</li>
-                <li>Copy your Account SID and Auth Token below</li>
-              </ol>
-            </div>
-            <div className="space-y-4">
-              <div><Label>Twilio Account SID</Label><Input className="mt-1.5" value={form.twilioSid} onChange={(e) => update("twilioSid", e.target.value)} placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" /></div>
-              <div><Label>Twilio Auth Token</Label><Input className="mt-1.5" type="password" value={form.twilioToken} onChange={(e) => update("twilioToken", e.target.value)} placeholder="Your auth token" /></div>
-              <div><Label>WhatsApp Number</Label><Input className="mt-1.5" value={form.whatsappNumber} onChange={(e) => update("whatsappNumber", e.target.value)} placeholder="+1234567890" /></div>
-            </div>
-            <Button variant="outline" onClick={handleTestConnection} disabled={testing}>
-              {testing ? <><Loader2 className="w-4 h-4 animate-spin" /> Testing...</> : "Test Connection"}
-            </Button>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-6 animate-fade-up">
-            <div><h2 className="text-2xl font-bold text-foreground">Choose your plan</h2><p className="text-muted-foreground mt-1">Start with a 14-day free trial. Cancel anytime.</p></div>
-            <div className="grid sm:grid-cols-3 gap-4">
-              {plans.map((plan) => (
-                <button
-                  key={plan.name}
-                  onClick={() => update("plan", plan.name.toLowerCase())}
-                  className={`text-left p-5 rounded-xl border-2 transition-all ${
-                    form.plan === plan.name.toLowerCase() ? "border-primary bg-primary/5 shadow-card-hover" : "border-border bg-card hover:border-primary/30"
+        {/* Progress Bar */}
+        <div className="flex justify-center gap-8 mb-10 overflow-hidden">
+          {steps.map((s) => (
+            <div key={s.number} className="flex flex-col items-center gap-2">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${step === s.number
+                  ? "bg-primary text-primary-foreground shadow-lg scale-110 ring-4 ring-primary/20"
+                  : step > s.number
+                    ? "bg-primary text-primary-foreground shadow-none"
+                    : "bg-white border-2 border-muted text-muted-foreground"
                   }`}
+              >
+                {step > s.number ? <CheckCircle2 className="w-6 h-6" /> : s.number}
+              </div>
+              <span className={`text-[10px] font-bold uppercase tracking-widest ${step >= s.number ? 'text-primary' : 'text-muted-foreground'}`}>
+                {s.title}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Step 1: Industry */}
+        {step === 1 && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-2xl font-bold text-center mb-2">What is your business type?</h2>
+            <p className="text-muted-foreground text-center mb-8">This helps us tailor your bot's behavior and knowledge.</p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {INDUSTRIES.map((ind) => (
+                <button
+                  key={ind.id}
+                  onClick={() => { setIndustry(ind.id); setStep(2); }}
+                  className={`flex flex-col items-center justify-center gap-4 p-6 rounded-2xl border-2 transition-all duration-300 active:scale-95 ${industry === ind.id
+                    ? 'border-primary bg-primary/5 ring-4 ring-primary/10 shadow-md'
+                    : 'border-white bg-white hover:border-primary/30 hover:shadow-lg shadow-sm'
+                    }`}
                 >
-                  <h3 className="font-bold text-foreground">{plan.name}</h3>
-                  <div className="flex items-baseline gap-0.5 my-2"><span className="text-2xl font-bold text-foreground">${plan.price}</span><span className="text-muted-foreground text-sm">/mo</span></div>
-                  <ul className="space-y-1.5 mt-3">
-                    {plan.features.map((f) => (<li key={f} className="flex items-center gap-1.5 text-xs text-muted-foreground"><CheckCircle2 className="w-3.5 h-3.5 text-success flex-shrink-0" />{f}</li>))}
-                  </ul>
+                  <div className={`w-12 h-12 rounded-xl ${ind.color} text-white flex items-center justify-center shadow-inner`}>
+                    <ind.icon className="w-6 h-6" />
+                  </div>
+                  <span className="font-bold text-sm text-foreground">{ind.label}</span>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Navigation */}
-        <div className="flex justify-between mt-10 pt-6 border-t border-border">
-          <Button variant="ghost" onClick={() => setStep((s) => s - 1)} disabled={step === 0}>
-            <ArrowLeft className="w-4 h-4 mr-1" /> Back
-          </Button>
-          {step < 3 ? (
-            <Button variant="hero" onClick={() => setStep((s) => s + 1)}>
-              Continue <ArrowRight className="w-4 h-4 ml-1" />
+        {/* Step 2: Website Scan */}
+        {step === 2 && (
+          <Card className="p-8 border-none shadow-xl rounded-3xl animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="bg-primary/5 w-fit px-4 py-1 rounded-full text-primary font-bold text-xs mb-4 mx-auto border border-primary/10">
+              AI TRAINING
+            </div>
+            <h2 className="text-2xl font-bold text-center mb-4">Train your bot with your website</h2>
+            <p className="text-muted-foreground text-center mb-8">
+              Paste your URL and we'll automatically learn your services, hours, and prices.
+            </p>
+
+            <div className="space-y-6">
+              <div className="relative">
+                <Input
+                  type="url"
+                  placeholder="https://example.com"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  className="h-14 px-6 rounded-2xl text-lg shadow-sm border-2 focus-visible:ring-primary focus-visible:border-primary"
+                />
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
+                <Sparkles className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-900 leading-relaxed font-medium">
+                  Our "Magic Scanner" will read your site in seconds to build your bot's brain.
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <Button variant="ghost" size="lg" className="flex-1 rounded-xl" onClick={() => setStep(1)}>Back</Button>
+                <Button
+                  className="flex-[2] h-12 rounded-xl text-lg font-bold shadow-lg shadow-primary/20"
+                  size="lg"
+                  onClick={handleScanWebsite}
+                  disabled={isScanning}
+                >
+                  {isScanning ? (
+                    <>
+                      <Loader className="w-5 h-5 mr-3 animate-spin" /> Training AI...
+                    </>
+                  ) : (
+                    "Start Magic Scan"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Step 3: Personality */}
+        {step === 3 && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500 font-sans">
+            <h2 className="text-2xl font-bold text-center mb-2">Configure Bot Personality</h2>
+            <p className="text-muted-foreground text-center mb-8">Choose how you want your AI assistant to sound.</p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+              {PERSONALITIES.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setPersonality(p.id)}
+                  className={`flex items-start gap-4 p-5 rounded-2xl border-2 transition-all duration-300 ${personality === p.id
+                    ? 'border-primary bg-primary/5 ring-4 ring-primary/10 shadow-md'
+                    : 'border-white bg-white hover:border-primary/30 hover:shadow-lg shadow-sm'
+                    }`}
+                >
+                  <div className={`w-10 h-10 rounded-xl bg-white border flex items-center justify-center text-primary shadow-sm ${personality === p.id ? 'border-primary/50' : 'border-muted'}`}>
+                    <p.icon className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold text-foreground">{p.label}</p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{p.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-4">
+              <Button variant="ghost" size="lg" className="flex-1 rounded-xl" onClick={() => setStep(2)}>Back</Button>
+              <Button
+                className="flex-[2] h-12 rounded-xl text-lg font-bold shadow-lg shadow-primary/20"
+                size="lg"
+                onClick={handleUpdateProfile}
+                disabled={isSaving}
+              >
+                {isSaving ? <Loader className="w-5 h-5 animate-spin" /> : "Complete Setup"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Success */}
+        {step === 4 && (
+          <Card className="p-10 text-center border-none shadow-2xl rounded-[3rem] animate-in zoom-in duration-700">
+            <div className="w-24 h-24 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-6 relative">
+              <CheckCircle2 className="w-12 h-12 text-success" />
+              <div className="absolute inset-0 rounded-full border-4 border-success animate-ping opacity-20"></div>
+            </div>
+
+            <h2 className="text-3xl font-black text-foreground mb-3 uppercase tracking-tight">Your Bot is Born!</h2>
+            <p className="text-muted-foreground mb-8 text-lg">
+              Your AI assistant is now configured for your **{industry}** business. It's currently monitoring your WhatsApp number.
+            </p>
+
+            <div className="grid grid-cols-2 gap-4 mb-10">
+              <div className="bg-[#f3f4f6] p-5 rounded-3xl border-2 border-white shadow-inner">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Status</p>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-success animate-pulse"></div>
+                  <p className="font-bold text-foreground">Active</p>
+                </div>
+              </div>
+              <div className="bg-[#f3f4f6] p-5 rounded-3xl border-2 border-white shadow-inner">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Knowledge</p>
+                <p className="font-bold text-foreground">Scanned</p>
+              </div>
+            </div>
+
+            <Button
+              className="w-full h-14 rounded-2xl text-xl font-black shadow-xl shadow-primary/30 active:scale-[0.98] transition-all"
+              size="lg"
+              onClick={() => navigate("/dashboard")}
+            >
+              Enter Dashboard
             </Button>
-          ) : (
-            <Button variant="hero" onClick={handleFinish}>
-              Start Free Trial <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          )}
-        </div>
+          </Card>
+        )}
       </div>
     </div>
   );

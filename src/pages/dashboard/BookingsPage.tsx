@@ -1,125 +1,199 @@
 import { useState } from "react";
+import { Calendar, Phone, Clock, MapPin, Trash2, CheckCircle, AlertCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, List, Plus } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/context/AuthContext";
-
-const statusColors: Record<string, string> = {
-  pending: "bg-warning/10 text-warning border-warning/20",
-  confirmed: "bg-success/10 text-success border-success/20",
-  completed: "bg-info/10 text-info border-info/20",
-  cancelled: "bg-destructive/10 text-destructive border-destructive/20",
-};
+import { useToast } from "@/hooks/use-toast";
 
 export default function BookingsPage() {
-  const [view, setView] = useState<"list" | "calendar">("list");
-  const queryClient = useQueryClient();
-  const { business, token } = useAuth(); // Added useAuth hook
+  const { business, token } = useAuth();
+  const { toast } = useToast();
+  const [filter, setFilter] = useState<"all" | "pending" | "completed">("all");
 
-  // Fetch real data from express DB
-  const { data: bookings = [], isLoading } = useQuery({
-    queryKey: ["bookings", business?.id], // Changed BUSINESS_ID to business?.id
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["bookings", business?.id, filter],
     queryFn: async () => {
-      if (!business?.id || !token) { // Added check for business ID and token
-        throw new Error("Business ID or token not available.");
-      }
-      const res = await fetch(`http://localhost:3001/api/bookings/${business.id}`, { // Updated URL and added headers
-        headers: {
-          'Authorization': `Bearer ${token}`
+      const res = await fetch(
+        `http://localhost:3001/api/bookings`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` }
         }
-      });
-      if (!res.ok) throw new Error("Failed to fetch bookings");
-      return res.json();
+      );
+      if (!res.ok) throw new Error("Failed to fetch");
+      const result = await res.json();
+      
+      if (filter === "all") return result.bookings || [];
+      return (result.bookings || []).filter((b: any) => b.status === filter);
     }
   });
 
-  const completeMutation = useMutation({
-    mutationFn: async (id: string) => {
-      if (!token) { // Added check for token
-        throw new Error("Authentication token not available.");
-      }
-      const res = await fetch(`http://localhost:3001/api/bookings/${id}/complete`, { // Updated URL and added headers
-        method: "POST",
-        headers: {
-          'Authorization': `Bearer ${token}`
+  const handleStatusChange = async (bookingId: string, newStatus: string) => {
+    try {
+      const res = await fetch(
+        `http://localhost:3001/api/bookings/${bookingId}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ status: newStatus })
         }
-      });
-      if (!res.ok) throw new Error("Failed to complete booking");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["bookings", business?.id] }); // Changed BUSINESS_ID to business?.id
-      toast.success("Booking completed and review requested!");
-    },
-    onError: () => toast.error("Error completing booking")
-  });
+      );
+
+      if (!res.ok) throw new Error("Failed to update");
+      
+      toast({ title: "Success", description: `Booking updated to ${newStatus}` });
+      refetch();
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    }
+  };
+
+  const handleDelete = async (bookingId: string) => {
+    if (!confirm("Are you sure?")) return;
+
+    try {
+      const res = await fetch(
+        `http://localhost:3001/api/bookings/${bookingId}`,
+        {
+          method: "DELETE",
+          headers: { 'Authorization': `Bearer ${token}` }
+        }
+      );
+
+      if (!res.ok) throw new Error("Failed to delete");
+      
+      toast({ title: "Success", description: "Booking deleted" });
+      refetch();
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending": return "bg-yellow-100 text-yellow-800";
+      case "confirmed": return "bg-blue-100 text-blue-800";
+      case "completed": return "bg-green-100 text-green-800";
+      case "cancelled": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Bookings</h1>
         <div className="flex gap-2">
-          <div className="flex rounded-lg border border-border overflow-hidden">
-            <button onClick={() => setView("list")} className={`px-3 py-1.5 text-sm ${view === "list" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"}`}>
-              <List className="w-4 h-4" />
-            </button>
-            <button onClick={() => setView("calendar")} className={`px-3 py-1.5 text-sm ${view === "calendar" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"}`}>
-              <Calendar className="w-4 h-4" />
-            </button>
-          </div>
-          <Button variant="hero" size="sm"><Plus className="w-4 h-4 mr-1" /> Add Booking</Button>
+          {(["all", "pending", "completed"] as const).map(f => (
+            <Button
+              key={f}
+              variant={filter === f ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilter(f)}
+              className="capitalize"
+            >
+              {f}
+            </Button>
+          ))}
         </div>
       </div>
 
-      <div className="rounded-xl bg-card border border-border shadow-card overflow-hidden">
-        {isLoading ? (
-          <div className="p-8 text-center text-muted-foreground">Loading bookings...</div>
-        ) : bookings.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">No bookings found.</div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border bg-muted/30">
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">Customer</th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">Service</th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">Date</th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">Time</th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">Status</th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {bookings.map((b: any) => (
-                <tr key={b.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="p-4">
-                    <p className="text-sm font-medium text-foreground">{b.customerName || b.customer}</p>
-                    <p className="text-xs text-muted-foreground">{b.customerPhone || b.phone}</p>
-                  </td>
-                  <td className="p-4 text-sm text-foreground">{'Service'}</td>
-                  <td className="p-4 text-sm text-foreground">{b.date ? new Date(b.date).toLocaleDateString() : 'N/A'}</td>
-                  <td className="p-4 text-sm text-foreground">{b.time}</td>
-                  <td className="p-4">
-                    <Badge variant="outline" className={`capitalize ${statusColors[b.status] || statusColors.pending}`}>{b.status}</Badge>
-                  </td>
-                  <td className="p-4">
-                    {b.status === "pending" && <Button size="sm" variant="success">Confirm</Button>}
-                    {b.status === "confirmed" && <Button size="sm" variant="outline" onClick={() => completeMutation.mutate(b.id)} disabled={completeMutation.isPending}>Complete</Button>}
-                    {b.status !== "pending" && b.status !== "confirmed" && <span className="text-xs text-muted-foreground">Done</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {isLoading ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading bookings...</p>
+        </div>
+      ) : !data || data.length === 0 ? (
+        <Card className="p-12 text-center">
+          <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+          <h3 className="text-lg font-medium text-foreground mb-2">No bookings yet</h3>
+          <p className="text-muted-foreground">
+            Customers will be able to book appointments through WhatsApp once your bot is live.
+          </p>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {data.map((booking: any) => (
+            <Card key={booking.id} className="p-5 hover:shadow-card transition-shadow">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-foreground text-lg">{booking.customerName}</h3>
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm mt-1">
+                    <Phone className="w-4 h-4" />
+                    {booking.customerPhone}
+                  </div>
+                </div>
+                <Badge className={getStatusColor(booking.status)}>
+                  {booking.status}
+                </Badge>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  <span className="text-foreground">{new Date(booking.date).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="w-4 h-4 text-primary" />
+                  <span className="text-foreground">{booking.time}</span>
+                </div>
+              </div>
+
+              {booking.notes && (
+                <div className="mb-4 p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">{booking.notes}</p>
+                </div>
+              )}
+
+              <div className="flex gap-2 flex-wrap">
+                {booking.status === "pending" && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleStatusChange(booking.id, "confirmed")}
+                      className="gap-1"
+                    >
+                      <CheckCircle className="w-3 h-3" /> Confirm
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleStatusChange(booking.id, "cancelled")}
+                      className="gap-1 text-red-600 border-red-200 hover:bg-red-50"
+                    >
+                      <AlertCircle className="w-3 h-3" /> Decline
+                    </Button>
+                  </>
+                )}
+                
+                {booking.status === "confirmed" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleStatusChange(booking.id, "completed")}
+                    className="gap-1"
+                  >
+                    <CheckCircle className="w-3 h-3" /> Mark Complete
+                  </Button>
+                )}
+
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleDelete(booking.id)}
+                  className="gap-1 text-destructive hover:bg-destructive/10 ml-auto"
+                >
+                  <Trash2 className="w-3 h-3" /> Delete
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -8,6 +8,8 @@ import whatsappRouter from './routes/whatsapp';
 import bookingsRouter from './routes/bookings';
 import stripeRouter from './routes/stripe';
 import dashboardRouter from './routes/dashboard';
+import businessRouter from './routes/business';
+import conversationsRouter from './routes/conversations';
 
 dotenv.config();
 
@@ -20,6 +22,7 @@ app.use(cors());
 // Stripe webhook needs raw body
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // Required for Twilio Webhooks
 
 // Routes
 import authRouter from './routes/auth';
@@ -31,6 +34,8 @@ app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/stripe', stripeRouter);
 app.use('/api/dashboard', authenticate, dashboardRouter);
+app.use('/api/business', authenticate, businessRouter);
+app.use('/api/conversations', authenticate, conversationsRouter);
 
 // Basic health route
 app.get('/api/health', (req, res) => {

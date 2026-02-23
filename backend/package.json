@@ -1,20 +1,29 @@
 {
-  "name": "backend",
+  "name": "botlocal-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "BotLocal AI WhatsApp Chatbot Backend",
+  "main": "dist/index.js",
   "scripts": {
     "start": "ts-node src/index.ts",
-    "dev": "nodemon src/index.ts"
+    "dev": "nodemon src/index.ts",
+    "build": "tsc",
+    "db:push": "prisma db push --accept-data-loss",
+    "db:seed": "ts-node seed.ts",
+    "setup": "npm install && npm run db:push && npm run db:seed"
   },
-  "keywords": [],
+  "keywords": [
+    "whatsapp",
+    "chatbot",
+    "ai",
+    "businesses"
+  ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "@huggingface/inference": "^4.13.12",
     "@langchain/core": "^1.1.27",
-    "@langchain/groq": "^1.1.2",
+    "@langchain/openai": "^1.2.9",
     "@prisma/client": "^5.21.1",
     "axios": "^1.13.5",
     "bcryptjs": "^3.0.3",
@@ -22,7 +31,6 @@
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
-    "groq-sdk": "^0.37.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
     "stripe": "^20.3.1",

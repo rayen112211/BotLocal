@@ -96,11 +96,11 @@ export default function OverviewPage() {
           <h2 className="font-semibold text-foreground mb-4">Message Usage</h2>
           <div className="space-y-3">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">124 / 500 messages</span>
-              <span className="font-medium text-foreground">25%</span>
+              <span className="text-muted-foreground">{stats.messagesUsed} / {stats.messageLimit} messages</span>
+              <span className="font-medium text-foreground">{Math.round(stats.usagePercent)}%</span>
             </div>
-            <Progress value={25} className="h-2" />
-            <p className="text-xs text-muted-foreground">Resets on March 1, 2026</p>
+            <Progress value={stats.usagePercent} className="h-2" />
+            <p className="text-xs text-muted-foreground">Resets on the 1st of next month</p>
           </div>
 
           <div className="mt-6 p-4 rounded-lg bg-primary/5 border border-primary/10">

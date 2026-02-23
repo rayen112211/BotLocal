@@ -1,63 +1,171 @@
 import { useState } from "react";
+import { Settings, Save, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { Save } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 export default function BotSettingsPage() {
-  const [autoDetect, setAutoDetect] = useState(true);
+  const { business } = useAuth();
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
+  const [settings, setSettings] = useState({
+    botName: "AI Assistant",
+    greetingMessage: "Hello! How can I help you today?",
+    businessHours: "Mon-Fri: 9 AM - 6 PM",
+    autoReplyOutOfHours: "We're currently closed. Please send us a message and we'll get back to you as soon as possible.",
+    bookingConfirmation: "Your appointment has been confirmed! We'll see you then.",
+    language: "auto-detect"
+  });
+
+  const handleChange = (field: string, value: string) => {
+    setSettings(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // Simulate saving (in real app, would POST to backend)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast({
+        title: "Settings saved!",
+        description: "Your bot configuration has been updated."
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h1 className="text-2xl font-bold text-foreground">Bot Settings</h1>
-
-      <div className="rounded-xl bg-card border border-border shadow-card p-6 space-y-6">
-        <div>
-          <Label>Bot Name</Label>
-          <Input className="mt-1.5" defaultValue="Assistant" />
-        </div>
-
-        <div>
-          <Label>Personality</Label>
-          <Select defaultValue="friendly">
-            <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="friendly">Friendly and Professional</SelectItem>
-              <SelectItem value="formal">Formal and Business-like</SelectItem>
-              <SelectItem value="casual">Casual and Fun</SelectItem>
-              <SelectItem value="concise">Short and Concise</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div><Label>Working Hours Start</Label><Input className="mt-1.5" type="time" defaultValue="09:00" /></div>
-          <div><Label>Working Hours End</Label><Input className="mt-1.5" type="time" defaultValue="21:00" /></div>
-        </div>
-
-        <div>
-          <Label>Out-of-Hours Message</Label>
-          <Textarea className="mt-1.5" defaultValue="Thanks for reaching out! We're currently closed. Our working hours are 9 AM - 9 PM. We'll get back to you as soon as we open!" rows={3} />
-        </div>
-
-        <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-          <div>
-            <p className="text-sm font-medium text-foreground">Auto-Detect Customer Language</p>
-            <p className="text-xs text-muted-foreground">Bot will reply in the customer's language</p>
-          </div>
-          <Switch checked={autoDetect} onCheckedChange={setAutoDetect} />
-        </div>
-
-        <div>
-          <Label>Google Maps Link</Label>
-          <Input className="mt-1.5" placeholder="https://maps.google.com/..." />
-        </div>
-
-        <Button variant="hero"><Save className="w-4 h-4 mr-1" /> Save Settings</Button>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Bot Settings</h1>
+        <p className="text-muted-foreground">Customize how your AI assistant responds to customers</p>
       </div>
+
+      {/* Basic Settings */}
+      <Card className="p-6">
+        <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Settings className="w-4 h-4" /> Basic Configuration
+        </h2>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="botName">Bot Name</Label>
+            <Input
+              id="botName"
+              value={settings.botName}
+              onChange={(e) => handleChange("botName", e.target.value)}
+              placeholder="Enter bot name"
+              className="mt-1.5"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              This is how customers will see your assistant identified
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="greetingMessage">Greeting Message</Label>
+            <Input
+              id="greetingMessage"
+              value={settings.greetingMessage}
+              onChange={(e) => handleChange("greetingMessage", e.target.value)}
+              placeholder="Enter greeting message"
+              className="mt-1.5"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="businessHours">Business Hours</Label>
+            <Input
+              id="businessHours"
+              value={settings.businessHours}
+              onChange={(e) => handleChange("businessHours", e.target.value)}
+              placeholder="e.g., Mon-Fri: 9 AM - 6 PM"
+              className="mt-1.5"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="language">Language</Label>
+            <select
+              id="language"
+              value={settings.language}
+              onChange={(e) => handleChange("language", e.target.value)}
+              className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm"
+            >
+              <option value="auto-detect">Auto-detect (Recommended)</option>
+              <option value="english">English</option>
+              <option value="french">French</option>
+              <option value="italian">Italian</option>
+              <option value="arabic">Arabic</option>
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Auto-detect will reply in the customer's language automatically
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Messages */}
+      <Card className="p-6">
+        <h2 className="font-semibold text-foreground mb-4">Automatic Responses</h2>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="autoReplyOutOfHours">Out of Hours Message</Label>
+            <textarea
+              id="autoReplyOutOfHours"
+              value={settings.autoReplyOutOfHours}
+              onChange={(e) => handleChange("autoReplyOutOfHours", e.target.value)}
+              placeholder="Message to send when you're closed"
+              className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm"
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="bookingConfirmation">Booking Confirmation Message</Label>
+            <textarea
+              id="bookingConfirmation"
+              value={settings.bookingConfirmation}
+              onChange={(e) => handleChange("bookingConfirmation", e.target.value)}
+              placeholder="Message to confirm bookings"
+              className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm"
+              rows={3}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Info Box */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">
+        <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <h3 className="font-medium text-blue-900 mb-1">Smart Responses</h3>
+          <p className="text-sm text-blue-800">
+            Your bot uses your knowledge base to answer questions about your services. These settings control fallback messages when the bot isn't sure about something.
+          </p>
+        </div>
+      </div>
+
+      <Button
+        onClick={handleSave}
+        disabled={isSaving}
+        size="lg"
+        className="gap-2"
+      >
+        <Save className="w-4 h-4" />
+        {isSaving ? "Saving..." : "Save Settings"}
+      </Button>
     </div>
   );
 }

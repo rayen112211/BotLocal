@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { label: "Overview", icon: LayoutDashboard, path: "/dashboard" },
-  { label: "Conversations", icon: MessageSquare, path: "/dashboard/conversations", badge: 3 },
+  { label: "Conversations", icon: MessageSquare, path: "/dashboard/conversations" },
   { label: "Bookings", icon: Calendar, path: "/dashboard/bookings" },
   { label: "Knowledge Base", icon: BookOpen, path: "/dashboard/knowledge" },
   { label: "Bot Settings", icon: Settings, path: "/dashboard/settings" },
@@ -42,11 +42,10 @@ export default function DashboardLayout() {
               key={item.path}
               to={item.locked ? "#" : item.path}
               onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
                   ? "bg-sidebar-primary text-sidebar-primary-foreground"
                   : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-              } ${item.locked ? "opacity-50 cursor-not-allowed" : ""}`}
+                } ${item.locked ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <item.icon className="w-4.5 h-4.5" />
               <span className="flex-1">{item.label}</span>

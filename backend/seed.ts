@@ -25,7 +25,7 @@ async function main() {
         }
     });
 
-    console.log("Mock Business created:", business.id);
+    console.log("✅ Mock Business created:", business.id);
 }
 
 main()
