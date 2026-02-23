@@ -111,31 +111,46 @@ Navigate to `http://localhost:8080` and log in with test credentials above.
 3. Create API token
 4. Add to `.env`: `HUGGING_FACE_API_KEY=xxx`
 
+## 🧠 How it Works (Technical Deep Dive)
+
+One of the most powerful features of BotLocal is its **Multi-Tenant Architecture**. This allows one backend server to handle hundreds of different businesses simultaneously without their data or conversations overlapping.
+
+### 1. Data Isolation (Multi-Tenancy)
+- Each user (Business Owner) has a unique account with their own email and password.
+- In the database, every `Conversation`, `Booking`, and `KnowledgeBase` entry is strictly tied to a `businessId`.
+- When a business owner logs into the dashboard, the system only fetches and displays data that matches their specific `businessId`.
+
+### 2. WhatsApp Routing (The "Same Number" Question)
+How can multiple businesses use WhatsApp without getting mixed up?
+
+- **Production Mode:** In a real-world scenario, each business registers their own unique WhatsApp-enabled phone number with Twilio. The backend stores this in the `twilioPhone` field. When a message arrives at the webhook, our system looks at the `To` field (the number the customer messaged) and finds the corresponding Business in our database instantly.
+- **Sandbox Mode:** For testing purposes, businesses often share a Twilio "Sandbox" number. Our system handles this by providing a fallback to the first available business, ensuring your testing always works even before you buy a production number.
+
+### 3. Industry-Specific Brains
+Even if two businesses work in the same field, their bots will sound different because:
+- **Knowledge Base**: Each bot is "trained" on a specific business website URL using our recursive "Magic Scanner."
+- **Industry IQ**: The AI system prompt dynamically injects specialized rules based on whether the business is a Restaurant, a Dental Clinic, etc.
+- **Personality Tuning**: You can choose if your bot should be "Friendly," "Professional," or "Concise."
+
+---
+
 ## 📋 Project Features
 
-### ✅ Currently Implemented
-- JWT Authentication
-- Business Dashboard
-- Conversation UI (multi-language support)
-- Bookings Calendar
-- Knowledge Base Upload Form
-- Settings & Billing Pages
-- Database Schema
-
-### 🔨 In Development
-- WhatsApp API Integration
-- AI/LLM Connection
-- Knowledge Base Ingestion (web scraping)
-- Real Booking Logic
-- Payment Integration
+### ✅ Currently Implemented & Verified
+- **Magic Onboarding**: Multi-step flow with industry selection and personality tuning.
+- **Recursive Website Scanner**: "Magic Scan" that learns from multiple pages of a business site.
+- **Unified Inbox**: Real-time monitoring of all WhatsApp chats in one dashboard.
+- **Human Takeover**: One-click toggle to pause the AI and take over a conversation manually.
+- **AI Booking Engine**: Automatic extraction of dates and times from chats to create bookings.
+- **Managed Usage Limits**: Tracks message counts and plan limits (e.g., 500/mo) for each user.
+- **Multi-tenant Backend**: Secure JWT authentication and data isolation.
+- **Stripe-Ready Billing**: Interface and logic ready for subscription management.
 
 ### 📅 Next Steps
-1. Connect Groq/Hugging Face API
-2. Set up Twilio WhatsApp
-3. Build knowledge base pipeline
-4. Implement real booking system
-5. Add email notifications
-6. Deploy to production
+1. Deploy to production (AWS/Railway/Vercel)
+2. Connect real Stripe keys for live payments
+3. Buy unique Twilio WhatsApp numbers for each business
+4. Add SMS fallback for customers without WhatsApp
 
 ## 🗂️ Project Structure Details
 
