@@ -64,38 +64,32 @@ export default function BillingPage() {
   const { data: subscription } = useQuery({
     queryKey: ["subscription", business?.id],
     queryFn: async () => {
-      // Mocking subscription data until backend route is fully implemented
-      return { subscription: { plan: business?.plan || "Starter", messagesUsed: business?.messageCount || 0, messageLimit: business?.plan === 'Pro' ? 5000 : 500, percentageUsed: business ? Math.round((business.messageCount / (business.plan === 'Pro' ? 5000 : 500)) * 100) : 0 } };
+      const res = await api.get('/stripe/subscription');
+      return res.data;
     },
-    enabled: !!business,
+    enabled: !!business?.id,
   });
 
   const handleUpgrade = async (plan: typeof PLANS[0]) => {
     try {
       if (!business) return;
-
-      const res = await api.post('/stripe/create-checkout-session', {
-        planId: plan.id,
-        businessId: business.id
-      });
-
+      const res = await api.post('/stripe/create-checkout-session', { planId: plan.id });
       const data = res.data;
-
       if (data.url) {
         window.location.href = data.url;
       } else {
-        toast({ title: "Success", description: "Checkout created" });
+        toast({ title: "Checkout created", description: "Complete payment in the new tab." });
       }
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.response?.data?.error || error.message
+        description: error.response?.data?.error || error.message || "Failed to start checkout."
       });
     }
   };
 
-  const currentPlan = subscription?.subscription?.plan || "Starter";
+  const currentPlan = subscription?.plan ?? "Starter";
 
   return (
     <div className="space-y-6">
@@ -104,8 +98,8 @@ export default function BillingPage() {
         <p className="text-muted-foreground">Manage your subscription and upgrade anytime</p>
       </div>
 
-      {/* Current Plan */}
-      {subscription?.subscription && (
+      {/* Current Plan - backend is source of truth */}
+      {subscription != null && (
         <Card className="p-6 border-primary/30 bg-primary/5">
           <div className="flex items-start justify-between mb-4">
             <div>
@@ -118,15 +112,15 @@ export default function BillingPage() {
           <div className="space-y-3 mb-4">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">Messages Used</p>
-              <p className="font-semibold text-foreground">{subscription.subscription.messagesUsed} / {subscription.subscription.messageLimit}</p>
+              <p className="font-semibold text-foreground">{subscription.messageCount ?? 0} / {subscription.messageLimit ?? 500}</p>
             </div>
             <div className="w-full bg-muted rounded-full h-2">
               <div
                 className="bg-primary rounded-full h-2 transition-all"
-                style={{ width: `${subscription.subscription.percentageUsed}%` }}
+                style={{ width: `${subscription.percentageUsed ?? 0}%` }}
               />
             </div>
-            <p className="text-xs text-muted-foreground">{subscription.subscription.percentageUsed}% used</p>
+            <p className="text-xs text-muted-foreground">{subscription.percentageUsed ?? 0}% used</p>
           </div>
 
           {currentPlan !== "Agency" && (

@@ -8,27 +8,30 @@ datasource db {
 }
 
 model Business {
-  id              String         @id @default(uuid())
-  email           String         @unique
-  password        String
-  name            String
-  websiteUrl      String?
-  phone           String?        @unique
-  telegramBotToken String?
-  telegramBotUsername String?
-  language        String?        @default("en") // Default system language
-  plan            String         @default("Starter") // Starter, Pro, Agency
-  industry        String?        @default("General") // Restaurant, Plumbing, Real Estate, etc.
-  botPersonality  String         @default("Professional & Friendly")
-  customInstructions String?      @default("Be helpful and try to assist the customer with their needs.")
-  stripeCustomerId String?
-  messageCount    Int            @default(0)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id                   String         @id @default(uuid())
+  email                String         @unique
+  password             String
+  name                 String
+  websiteUrl           String?
+  phone                String?        @unique
+  telegramBotToken     String?
+  telegramBotUsername  String?
+  language             String?        @default("en")
+  plan                 String         @default("Starter")
+  industry             String?        @default("General")
+  botPersonality       String         @default("Professional & Friendly")
+  customInstructions  String?        @default("Be helpful and try to assist the customer with their needs.")
+  stripeCustomerId     String?
+  messageCount         Int            @default(0)
+  lastMessageAt        DateTime?      // Track last incoming message for diagnostics
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
-  knowledgeBases  KnowledgeBase[]
-  conversations   Conversation[]
-  bookings        Booking[]
+  knowledgeBases       KnowledgeBase[]
+  conversations        Conversation[]
+  bookings             Booking[]
+  notifications        Notification[]
+  paymentEvents        PaymentEvent[]
 }
 
 model KnowledgeBase {
@@ -71,4 +74,36 @@ model Booking {
   updatedAt     DateTime @updatedAt
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+// ===========================================
+// RELIABILITY LAYER - Notifications & Events
+// ===========================================
+
+// User notifications for trust & feedback
+model Notification {
+  id         String   @id @default(uuid())
+  businessId String
+  type       String   // "success", "error", "info", "payment", "bot_status"
+  title      String
+  message    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+// Payment events for idempotency (Stripe webhooks) - businessId optional until we resolve it from event
+model PaymentEvent {
+  id            String   @id @default(uuid())
+  businessId    String?
+  stripeEventId String   @unique // Stripe's unique event ID for idempotency
+  type          String   // "checkout.completed", "subscription.deleted", etc.
+  amount        Int?     // Amount in cents
+  plan          String?
+  status        String   // "processed", "failed"
+  rawEvent      String?  // JSON string of full Stripe event for debugging
+  createdAt     DateTime @default(now())
+
+  business Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }

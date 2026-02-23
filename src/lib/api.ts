@@ -71,15 +71,11 @@ export const scannerAPI = {
   delete: (id: string) => api.delete(`/scanner/${id}`),
 };
 
-// Stripe/Billing endpoints
+// Stripe/Billing - plan is only updated via Stripe webhook; frontend only reads
 export const billingAPI = {
-  getPlans: () => api.get('/stripe/plans'),
   getSubscription: () => api.get('/stripe/subscription'),
-  checkout: (planId: string, businessId: string) =>
-    api.post('/stripe/create-checkout-session', { planId, businessId }),
-  upgrade: (planId: string) =>
-    api.post('/stripe/upgrade', { planId }),
-  getBillingHistory: () => api.get('/stripe/history'),
+  createCheckout: (planId: string) =>
+    api.post('/stripe/create-checkout-session', { planId }),
 };
 
 // Conversations (if we add a route for it)
@@ -94,6 +90,27 @@ export const conversationsAPI = {
 // Business settings
 export const businessAPI = {
   update: (data: any) => api.put('/business', data),
+  get: () => api.get('/business'),
+};
+
+// Telegram status
+export const telegramAPI = {
+  getStatus: (businessId: string) => api.get(`/telegram/business-status/${businessId}`),
+  registerWebhook: (businessId: string, backendUrl: string) => 
+    api.post(`/telegram/register-webhook/${businessId}`, { backendUrl }),
+};
+
+// Notifications
+export const notificationsAPI = {
+  getAll: () => api.get('/notifications'),
+  markAsRead: (id: string) => api.patch(`/notifications/${id}/read`),
+  markAllAsRead: () => api.patch('/notifications/read-all'),
+};
+
+// System health
+export const healthAPI = {
+  getDetailed: () => api.get('/health/detailed'),
+  getSystemStatus: () => api.get('/system/status'),
 };
 
 export default api;

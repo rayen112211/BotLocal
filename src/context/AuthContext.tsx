@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { api } from '@/lib/api';
 
 interface Business {
     id: string;
@@ -15,6 +16,7 @@ interface AuthContextType {
     token: string | null;
     login: (token: string, business: Business) => void;
     logout: () => void;
+    refreshBusiness: () => Promise<void>;
     isAuthenticated: boolean;
     isLoading: boolean;
 }
@@ -57,8 +59,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('business');
     };
 
+    const refreshBusiness = async () => {
+        const stored = localStorage.getItem('token');
+        if (!stored) return;
+        try {
+            const res = await api.get('/business');
+            const b = res.data;
+            setBusiness(b);
+            localStorage.setItem('business', JSON.stringify(b));
+        } catch (_) {
+            // e.g. 401 will be handled by interceptor
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ business, token, login, logout, isAuthenticated: !!token, isLoading }}>
+        <AuthContext.Provider value={{ business, token, login, logout, refreshBusiness, isAuthenticated: !!token, isLoading }}>
             {children}
         </AuthContext.Provider>
     );

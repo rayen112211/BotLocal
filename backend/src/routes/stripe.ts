@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import Stripe from 'stripe';
 
 import prisma from '../lib/prisma';
@@ -9,10 +9,22 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: '2026-01-28.clover',
 });
 
-// Create a checkout session
-router.post('/create-checkout-session', authenticate, async (req: AuthRequest, res) => {
+// ===========================================
+// PLAN PRICE IDS - Source of truth for plans
+// ===========================================
+// These should match your Stripe product prices
+const PLAN_PRICES: Record<string, { priceId: string; name: string; messages: number }> = {
+    'price_pro_monthly': { priceId: 'price_pro_monthly', name: 'Pro', messages: 5000 },
+    'price_agency_monthly': { priceId: 'price_agency_monthly', name: 'Agency', messages: Infinity },
+};
+
+// ===========================================
+// CREATE CHECKOUT SESSION - Frontend calls this
+// ===========================================
+
+router.post('/create-checkout-session', authenticate, async (req: AuthRequest, res: Response) => {
     try {
-        const { businessId } = req; // Derived from JWT
+        const { businessId } = req;
         const { planId } = req.body;
 
         if (!businessId) return res.status(401).json({ error: 'Unauthorized' });
@@ -20,98 +32,284 @@ router.post('/create-checkout-session', authenticate, async (req: AuthRequest, r
         const business = await prisma.business.findUnique({ where: { id: businessId } });
         if (!business) return res.status(404).json({ error: 'Business not found' });
 
-        let unitAmount = 0;
+        // Map planId to Stripe price ID
+        let stripePriceId = '';
         let productName = '';
 
         if (planId === 'pro') {
-            unitAmount = 2900;
+            stripePriceId = process.env.STRIPE_PRO_PRICE_ID || 'price_pro_monthly';
             productName = 'Pro Plan - BotLocal';
         } else if (planId === 'agency') {
-            unitAmount = 9900;
+            stripePriceId = process.env.STRIPE_AGENCY_PRICE_ID || 'price_agency_monthly';
             productName = 'Agency Plan - BotLocal';
         } else {
             return res.status(400).json({ error: 'Invalid plan selected' });
         }
 
+        // Create checkout session with price ID (not amount)
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: [
                 {
-                    price_data: {
-                        currency: 'usd',
-                        product_data: {
-                            name: productName,
-                        },
-                        unit_amount: unitAmount,
-                        recurring: {
-                            interval: 'month',
-                        },
-                    },
+                    price: stripePriceId,
                     quantity: 1,
                 },
             ],
             mode: 'subscription',
-            success_url: `${process.env.FRONTEND_URL}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${process.env.FRONTEND_URL}/pricing`,
+            success_url: `${process.env.FRONTEND_URL}/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${process.env.FRONTEND_URL}/pricing?payment=cancelled`,
             client_reference_id: businessId,
+            metadata: {
+                businessId: businessId,
+                plan: planId
+            }
         });
 
+        console.log(`[STRIPE] Created checkout session ${session.id} for business ${businessId}, plan: ${planId}`);
         res.json({ id: session.id, url: session.url });
     } catch (error: any) {
+        console.error('[STRIPE] Create checkout error:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// Webhook to handle successful payments and updates
-router.post('/webhook', require('express').raw({ type: 'application/json' }), async (req, res) => {
+// ===========================================
+// STRIPE WEBHOOK - Authoritative Payment Handler
+// ===========================================
+
+// Raw body is applied in index.ts for this path; do not parse JSON here
+router.post('/webhook', async (req: Request, res: Response) => {
     const sig = req.headers['stripe-signature'];
-    let event;
+    let event: Stripe.Event;
 
     try {
         event = stripe.webhooks.constructEvent(req.body, sig as string, process.env.STRIPE_WEBHOOK_SECRET!);
     } catch (err: any) {
+        console.error(`[STRIPE WEBHOOK] ✗ Signature verification failed: ${err.message}`);
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    // Handle the event
-    switch (event.type) {
-        case 'checkout.session.completed':
-            const session = event.data.object as any;
-            const businessId = session.client_reference_id;
+    console.log(`[STRIPE WEBHOOK] Received event: ${event.type}, ID: ${event.id}`);
 
-            if (businessId) {
-                // Find which plan they subscribed to based on amount or price ID
-                // Simplified mapping:
-                const amountTotal = session.amount_total;
-                let planName = 'Starter';
-                if (amountTotal && amountTotal >= 5900) planName = 'Pro';
-                if (amountTotal && amountTotal >= 9900) planName = 'Agency';
-
-                await prisma.business.update({
-                    where: { id: businessId },
-                    data: {
-                        plan: planName,
-                        stripeCustomerId: session.customer as string
-                    }
-                });
-                console.log(`Updated business ${businessId} to plan ${planName}`);
-            }
-            break;
-        case 'customer.subscription.deleted':
-            const subscription = event.data.object as any;
-            const customerId = subscription.customer as string;
-
-            await prisma.business.updateMany({
-                where: { stripeCustomerId: customerId },
-                data: { plan: 'Starter' } // Downgrade to Starter
-            });
-            console.log(`Downgraded customer ${customerId} to Starter`);
-            break;
-        default:
-            console.log(`Unhandled event type ${event.type}`);
+    // Handle the event - MONEY = TRUTH
+    try {
+        await handleStripeEvent(event);
+    } catch (error: any) {
+        console.error(`[STRIPE WEBHOOK] ✗ Error processing event ${event.id}: ${error.message}`);
+        // Return 500 to Stripe to trigger retry
+        return res.status(500).json({ error: 'Failed to process webhook' });
     }
 
-    res.send();
+    res.json({ received: true });
+});
+
+// ===========================================
+// PROCESS STRIPE EVENT - Idempotent Handler
+// ===========================================
+
+async function handleStripeEvent(event: Stripe.Event): Promise<void> {
+    const eventId = event.id;
+    const eventType = event.type;
+
+    // Check for idempotency - don't process same event twice
+    const existingEvent = await prisma.paymentEvent.findUnique({
+        where: { stripeEventId: eventId }
+    });
+
+    if (existingEvent) {
+        console.log(`[STRIPE] Event ${eventId} already processed, skipping`);
+        return;
+    }
+
+    await prisma.paymentEvent.create({
+        data: {
+            stripeEventId: eventId,
+            type: eventType,
+            status: 'processing',
+            rawEvent: JSON.stringify(event)
+        }
+    });
+    console.log(`[STRIPE] Persisted event ${eventId} (${eventType})`);
+
+    switch (eventType) {
+        case 'checkout.session.completed': {
+            const session = event.data.object as Stripe.Checkout.Session;
+            const businessId = session.client_reference_id;
+
+            if (!businessId) {
+                console.error('[STRIPE] No business ID in checkout session');
+                return;
+            }
+
+            // Get subscription to find the price/plan
+            const subscriptionId = session.subscription as string;
+            let planName = 'Starter';
+
+            if (subscriptionId) {
+                const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+                const subscriptionItem = subscription.items.data[0];
+                const priceId = subscriptionItem.price.id;
+                
+                // Map price ID to plan name
+                if (priceId === process.env.STRIPE_AGENCY_PRICE_ID || priceId === 'price_agency_monthly') {
+                    planName = 'Agency';
+                } else if (priceId === process.env.STRIPE_PRO_PRICE_ID || priceId === 'price_pro_monthly') {
+                    planName = 'Pro';
+                }
+            }
+
+            // Update business plan atomically
+            await prisma.business.update({
+                where: { id: businessId },
+                data: {
+                    plan: planName,
+                    stripeCustomerId: session.customer as string
+                }
+            });
+
+            await prisma.paymentEvent.updateMany({
+                where: { stripeEventId: eventId },
+                data: { businessId, plan: planName, amount: session.amount_total ?? undefined, status: 'processed' }
+            });
+
+            await prisma.notification.create({
+                data: {
+                    businessId: businessId,
+                    type: 'payment',
+                    title: 'Payment Successful!',
+                    message: `Your subscription has been upgraded to ${planName}. You now have access to all ${planName} features.`
+                }
+            });
+
+            console.log(`[STRIPE] ✓ Business ${businessId} upgraded to ${planName}`);
+            break;
+        }
+
+        case 'customer.subscription.deleted': {
+            const subscription = event.data.object as Stripe.Subscription;
+            const customerId = subscription.customer as string;
+
+            // Downgrade to Starter
+            const result = await prisma.business.updateMany({
+                where: { stripeCustomerId: customerId },
+                data: { plan: 'Starter' }
+            });
+
+            if (result.count > 0) {
+                // Find the business to notify
+                const business = await prisma.business.findFirst({
+                    where: { stripeCustomerId: customerId }
+                });
+
+                if (business) {
+                    await prisma.notification.create({
+                        data: {
+                            businessId: business.id,
+                            type: 'payment',
+                            title: 'Subscription Cancelled',
+                            message: 'Your subscription has been cancelled. You have been moved to the Starter plan.'
+                        }
+                    });
+                }
+            }
+
+            await prisma.paymentEvent.updateMany({ where: { stripeEventId: eventId }, data: { status: 'processed' } });
+            console.log(`[STRIPE] Customer ${customerId} downgraded to Starter`);
+            break;
+        }
+
+        case 'invoice.payment_failed': {
+            const invoice = event.data.object as Stripe.Invoice;
+            const customerId = invoice.customer as string;
+
+            const business = await prisma.business.findFirst({
+                where: { stripeCustomerId: customerId }
+            });
+
+            if (business) {
+                await prisma.notification.create({
+                    data: {
+                        businessId: business.id,
+                        type: 'error',
+                        title: 'Payment Failed',
+                        message: `Payment of ${(invoice.amount_due / 100).toFixed(2)} ${invoice.currency} failed. Please update your payment method.`
+                    }
+                });
+            }
+
+            await prisma.paymentEvent.updateMany({ where: { stripeEventId: eventId }, data: { status: 'processed' } });
+            console.log(`[STRIPE] Payment failed for customer ${customerId}`);
+            break;
+        }
+
+        default:
+            await prisma.paymentEvent.updateMany({ where: { stripeEventId: eventId }, data: { status: 'processed' } });
+            console.log(`[STRIPE] Unhandled event type: ${eventType}`);
+    }
+}
+
+// ===========================================
+// GET SUBSCRIPTION STATUS - For frontend
+// ===========================================
+
+router.get('/subscription', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const { businessId } = req;
+        if (!businessId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const business = await prisma.business.findUnique({
+            where: { id: businessId },
+            select: {
+                plan: true,
+                stripeCustomerId: true,
+                messageCount: true
+            }
+        });
+
+        if (!business) return res.status(404).json({ error: 'Business not found' });
+
+        const messageLimit = business.plan === 'Agency' ? Infinity : (business.plan === 'Pro' ? 5000 : 500);
+
+        res.json({
+            plan: business.plan,
+            stripeCustomerId: business.stripeCustomerId,
+            messageCount: business.messageCount,
+            messageLimit: messageLimit,
+            percentageUsed: messageLimit === Infinity ? 0 : Math.round((business.messageCount / messageLimit) * 100)
+        });
+    } catch (error: any) {
+        console.error('[STRIPE] Get subscription error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ===========================================
+// CREATE PORTAL SESSION - For managing subscription
+// ===========================================
+
+router.post('/create-portal-session', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const { businessId } = req;
+        if (!businessId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const business = await prisma.business.findUnique({
+            where: { id: businessId }
+        });
+
+        if (!business?.stripeCustomerId) {
+            return res.status(400).json({ error: 'No active subscription' });
+        }
+
+        const session = await stripe.billingPortal.sessions.create({
+            customer: business.stripeCustomerId,
+            return_url: `${process.env.FRONTEND_URL}/dashboard/billing`
+        });
+
+        res.json({ url: session.url });
+    } catch (error: any) {
+        console.error('[STRIPE] Create portal session error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 export default router;

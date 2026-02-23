@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, refreshBusiness } = useAuth();
   const { toast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -23,12 +23,16 @@ export default function LoginPage() {
     try {
       const res = await authAPI.login(email, password);
       const data = res.data;
-
       login(data.token, data.business);
+      await refreshBusiness();
       toast({ title: "Welcome back!", description: "Successfully logged in." });
       navigate("/dashboard");
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Login failed", description: error.message });
+      toast({
+        variant: "destructive",
+        title: "Login failed",
+        description: error.response?.data?.error || error.message || "Invalid credentials."
+      });
     } finally {
       setIsLoading(false);
     }

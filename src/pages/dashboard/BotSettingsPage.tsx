@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Settings, Save, AlertCircle, MessageSquare } from "lucide-react";
+import { Settings, Save, AlertCircle, MessageSquare, CheckCircle2, XCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { businessAPI } from "@/lib/api";
 
 export default function BotSettingsPage() {
-  const { business } = useAuth();
+  const { business, refreshBusiness } = useAuth();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [settings, setSettings] = useState({
@@ -38,6 +39,13 @@ export default function BotSettingsPage() {
     setSettings(prev => ({ ...prev, [field]: value }));
   };
 
+  const { data: businessData, refetch: refetchBusiness } = useQuery({
+    queryKey: ["business", business?.id],
+    queryFn: () => businessAPI.get().then(r => r.data),
+    enabled: !!business?.id,
+  });
+  const botStatus = businessData?.botStatus;
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -46,15 +54,18 @@ export default function BotSettingsPage() {
         telegramBotToken: settings.telegramBotToken || undefined,
         telegramBotUsername: settings.telegramBotUsername || undefined
       });
+      await refreshBusiness();
+      refetchBusiness();
       toast({
-        title: "Settings saved!",
-        description: "Your bot configuration has been updated."
+        title: "Bot connected",
+        description: "Webhook registered. Your bot is ready to receive messages."
       });
     } catch (error: any) {
+      const msg = error.response?.data?.error || error.message || "Failed to save settings.";
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.response?.data?.error || error.message || "Failed to save settings."
+        description: msg
       });
     } finally {
       setIsSaving(false);
@@ -105,6 +116,29 @@ export default function BotSettingsPage() {
               Example: YourBusinessBot (without the @ symbol)
             </p>
           </div>
+
+          {botStatus != null && (
+            <div className="rounded-lg border border-border p-3 space-y-2">
+              <p className="text-sm font-medium text-foreground">Bot status</p>
+              <div className="flex items-center gap-2">
+                {botStatus.healthy ? (
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-red-600" />
+                )}
+                <span className="text-sm">{botStatus.healthy ? "Connected" : "Not connected"}</span>
+              </div>
+              {botStatus.webhookUrl && (
+                <p className="text-xs text-muted-foreground truncate" title={botStatus.webhookUrl}>
+                  Webhook: {botStatus.webhookUrl}
+                </p>
+              )}
+              {botStatus.lastError && (
+                <p className="text-xs text-destructive">Error: {botStatus.lastError}</p>
+              )}
+            </div>
+          )}
+
           <div>
             <Label htmlFor="botName">Bot Name</Label>
             <Input
