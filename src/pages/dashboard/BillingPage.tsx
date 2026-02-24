@@ -80,7 +80,11 @@ export default function BillingPage() {
   const handleUpgrade = async (plan: typeof PLANS[0]) => {
     try {
       if (!business) return;
+      console.log('Upgrade clicked for plan:', plan.id);
+
       const res = await api.post('/stripe/create-checkout-session', { planId: plan.id });
+      console.log('Stripe response:', res.data);
+
       const data = res.data;
       if (data.url) {
         window.location.href = data.url;
@@ -88,6 +92,7 @@ export default function BillingPage() {
         toast({ title: "Checkout created", description: "Complete payment in the new tab." });
       }
     } catch (error: any) {
+      console.error('Upgrade error:', error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -136,8 +141,8 @@ export default function BillingPage() {
             </p>
           </div>
 
-          {currentPlan !== "Agency" && (
-            <Button className="gap-2">
+          {currentPlan !== "Agency" && currentPlan !== "Enterprise" && (
+            <Button className="gap-2" onClick={() => handleUpgrade(PLANS.find(p => p.id === 'pro') || PLANS[1])}>
               Upgrade Plan <ArrowRight className="w-4 h-4" />
             </Button>
           )}

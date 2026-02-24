@@ -42,6 +42,7 @@ router.post('/create-checkout-session', express.json(), authenticate, async (req
         // Create checkout session with price ID (not amount)
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
+            customer_email: business.email,
             line_items: [
                 {
                     price: stripePriceId,
@@ -127,29 +128,26 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
     switch (eventType) {
         case 'checkout.session.completed': {
             const session = event.data.object as Stripe.Checkout.Session;
-            const businessId = session.client_reference_id;
+            const businessId = session.metadata?.businessId || session.client_reference_id;
+            const planId = session.metadata?.plan;
 
             if (!businessId) {
-                console.error('[STRIPE] No business ID in checkout session');
+                console.error('[STRIPE] No business ID in checkout session metadata');
                 return;
             }
 
-            // Get subscription to find the price/plan
-            const subscriptionId = session.subscription as string;
             let planName = 'Starter';
-
-            if (subscriptionId) {
-                const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-                const subscriptionItem = subscription.items.data[0];
-                const priceId = subscriptionItem.price.id;
-
-                // Map price ID to plan name dynamically
+            if (planId) {
+                // Determine Plan name (e.g. "pro" -> "Pro")
                 const foundPlanKey = Object.keys(global.STRIPE_PRICES || {}).find(
-                    key => global.STRIPE_PRICES[key] === priceId
+                    key => key === planId
                 );
 
                 if (foundPlanKey && global.PLAN_FEATURES && global.PLAN_FEATURES[foundPlanKey]) {
                     planName = global.PLAN_FEATURES[foundPlanKey].name;
+                } else {
+                    // Fallback
+                    planName = planId.charAt(0).toUpperCase() + planId.slice(1);
                 }
             }
 
