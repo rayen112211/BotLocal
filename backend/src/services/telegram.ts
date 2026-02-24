@@ -1,6 +1,6 @@
 import { Telegraf } from 'telegraf';
 import prisma from '../lib/prisma';
-import { generateReply } from './ai';
+import { generateReply, checkPlanLimit } from './ai';
 
 // Store initialized bots to avoid recreating them on every request
 export const activeBots: Record<string, Telegraf> = {};
@@ -136,13 +136,24 @@ export async function handleTelegramWebhook(token: string, body: any): Promise<{
         });
 
         // 5. Check plan limits
-        const messageLimit = business.plan === 'Agency' ? Infinity : (business.plan === 'Pro' ? 5000 : 500);
+        const limitCheck = checkPlanLimit(business);
+        if (!limitCheck.allowed) {
+            console.log(`${logPrefix} [LIMIT] ${business.name} hit message limit. ${limitCheck.message}`);
 
-        if (business.plan === 'Starter' && business.messageCount >= messageLimit) {
-            console.log(`${logPrefix} Message limit reached for business ${business.id}`);
+            // Avoid spamming notifications for every single blocked message
+            // Create a notification for the owner if we haven't in the last 24h (optional logic check but for now we'll just create it)
+            await prisma.notification.create({
+                data: {
+                    businessId: business.id,
+                    type: 'error',
+                    title: 'Message Limit Reached',
+                    message: limitCheck.message
+                }
+            });
+
             await bot.telegram.sendMessage(
                 customerId,
-                "Please contact the business directly. (Message limit reached)"
+                "Sorry, this business has reached their message limit. They can continue next billing cycle."
             );
             return { success: true };
         }

@@ -118,16 +118,22 @@ export default function BillingPage() {
 
           <div className="space-y-3 mb-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Messages Used</p>
-              <p className="font-semibold text-foreground">{subscription.messageCount ?? 0} / {subscription.messageLimit ?? 500}</p>
+              <p className="text-sm font-medium text-muted-foreground">Messages Used This Month</p>
+              <p className="font-semibold text-foreground">
+                {subscription.messageCount ?? 0} / {subscription.messageLimit === null ? 'Unlimited' : (subscription.messageLimit ?? 100)}
+              </p>
             </div>
-            <div className="w-full bg-muted rounded-full h-2">
-              <div
-                className="bg-primary rounded-full h-2 transition-all"
-                style={{ width: `${subscription.percentageUsed ?? 0}%` }}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">{subscription.percentageUsed ?? 0}% used</p>
+            {subscription.messageLimit !== null && (
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className="bg-primary rounded-full h-2 transition-all"
+                  style={{ width: `${subscription.percentageUsed ?? 0}%` }}
+                />
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate()} days remaining in billing cycle
+            </p>
           </div>
 
           {currentPlan !== "Agency" && (

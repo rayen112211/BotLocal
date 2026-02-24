@@ -14,6 +14,7 @@ import notificationsRouter from './routes/notifications';
 import prisma from './lib/prisma';
 import { handleTelegramWebhook } from './services/telegram';
 import { initializeStripePrices } from './services/stripe';
+import { initScheduler } from './services/scheduler';
 
 dotenv.config();
 
@@ -199,4 +200,7 @@ app.listen(port, async () => {
 
     // Auto-initialize Stripe pricing system
     await initializeStripePrices();
+
+    // Start background jobs
+    initScheduler();
 });

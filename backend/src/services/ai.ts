@@ -38,16 +38,32 @@ ${history}
 `;
 };
 
+export function checkPlanLimit(business: any) {
+    const planKey = business.plan.toLowerCase();
+    const planFeatures = global.PLAN_FEATURES?.[planKey] || global.PLAN_FEATURES?.starter;
+    const limit = planFeatures?.features?.messages_per_month;
+
+    if (limit !== null && limit !== undefined && business.messageCount >= limit) {
+        let upgradeMsg = 'Upgrade to Pro for more messages.';
+        if (planKey === 'starter') upgradeMsg = `Upgrade to Pro for 5,000 messages/month.`;
+        if (planKey === 'pro') upgradeMsg = `Upgrade to Enterprise for unlimited messages.`;
+
+        return {
+            allowed: false,
+            message: `❌ You've used ${limit} messages this month. ${upgradeMsg}`
+        };
+    }
+
+    return { allowed: true };
+}
+
 export const generateReply = async (businessId: string, customerPhone: string, customerMessage: string) => {
     // 1. Fetch Business Info
     const business = await prisma.business.findUnique({ where: { id: businessId } });
     if (!business) return "Business not found.";
 
-    const planKey = business.plan.toLowerCase();
-    const planFeatures = global.PLAN_FEATURES?.[planKey] || global.PLAN_FEATURES?.starter;
-    const messageLimit = planFeatures?.features?.messages_per_month;
-
-    if (messageLimit !== null && business.messageCount >= messageLimit) {
+    const limitCheck = checkPlanLimit(business);
+    if (!limitCheck.allowed) {
         return "Please contact the business directly. (Message limit reached)";
     }
 
