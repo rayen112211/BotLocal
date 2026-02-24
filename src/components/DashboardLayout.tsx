@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { Link, useLocation, Outlet } from "react-router-dom";
+import { Link, useLocation, Outlet, useSearchParams } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import {
   LayoutDashboard, MessageSquare, Calendar, BookOpen, Settings, Star,
@@ -18,7 +17,7 @@ const navItems = [
   { label: "Knowledge Base", icon: BookOpen, path: "/dashboard/knowledge" },
   { label: "Bot Settings", icon: Settings, path: "/dashboard/settings" },
   { label: "Review Requests", icon: Star, path: "/dashboard/reviews" },
-  { label: "Analytics", icon: BarChart3, path: "/dashboard/analytics", locked: true },
+  { label: "Analytics", icon: BarChart3, path: "/dashboard/analytics" },
   { label: "Billing", icon: CreditCard, path: "/dashboard/billing" },
   { label: "Help", icon: HelpCircle, path: "/dashboard/help" },
 ];
@@ -27,20 +26,20 @@ const navItems = [
 function StatusBadge({ status, label }: { status: 'healthy' | 'degraded' | 'unhealthy' | 'offline', label: string }) {
   const colors = {
     healthy: 'bg-green-500/10 text-green-500',
-    degraded: 'bg-yellow-500/10 text-yellow-500', 
+    degraded: 'bg-yellow-500/10 text-yellow-500',
     unhealthy: 'bg-red-500/10 text-red-500',
     offline: 'bg-gray-500/10 text-gray-500',
   };
-  
+
   const icons = {
     healthy: CheckCircle2,
     degraded: AlertCircle,
     unhealthy: XCircle,
     offline: XCircle,
   };
-  
+
   const Icon = icons[status];
-  
+
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${colors[status]}`}>
       <Icon className="w-3 h-3" />
@@ -57,19 +56,22 @@ export default function DashboardLayout() {
   const [botStatus, setBotStatus] = useState<any>(null);
   const [systemHealth, setSystemHealth] = useState<any>(null);
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { business, refreshBusiness } = useAuth();
   const { toast } = useToast();
 
   // Payment success return from Stripe: refetch business and show confirmation
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('payment') === 'success') {
+    if (searchParams.get('payment') === 'success') {
       refreshBusiness().then(() => {
         toast({ title: 'Payment successful', description: 'Your plan has been updated.' });
       });
-      window.history.replaceState({}, '', location.pathname);
+      // Remove the query parameter safely to avoid duplicate toasts on re-renders
+      searchParams.delete('payment');
+      searchParams.delete('session_id');
+      setSearchParams(searchParams, { replace: true });
     }
-  }, [location.search, location.pathname, refreshBusiness, toast]);
+  }, [searchParams, setSearchParams, refreshBusiness, toast]);
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -162,16 +164,15 @@ export default function DashboardLayout() {
           return (
             <Link
               key={item.path}
-              to={item.locked ? "#" : item.path}
+              to={item.path}
               onClick={() => setSidebarOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                } ${item.locked ? "opacity-50 cursor-not-allowed" : ""}`}
+                ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                }`}
             >
               <item.icon className="w-4.5 h-4.5" />
               <span className="flex-1">{item.label}</span>
-              {item.locked && <Lock className="w-3.5 h-3.5" />}
             </Link>
           );
         })}
@@ -218,7 +219,7 @@ export default function DashboardLayout() {
           <button className="lg:hidden text-foreground" onClick={() => setSidebarOpen(true)}>
             <Menu className="w-5 h-5" />
           </button>
-          
+
           {/* Bot Status */}
           <div className="hidden md:flex items-center gap-2" title={botStatus?.lastError ? `Error: ${botStatus.lastError}` : undefined}>
             <span className="text-xs text-muted-foreground">Bot:</span>
@@ -231,7 +232,7 @@ export default function DashboardLayout() {
             ) : (
               <StatusBadge status="offline" label="Unknown" />
             )}
-            <button 
+            <button
               onClick={handleRefreshBotStatus}
               className="p-1 hover:bg-accent rounded"
               title="Refresh status"
@@ -241,7 +242,7 @@ export default function DashboardLayout() {
           </div>
 
           <div className="flex-1" />
-          
+
           {/* System Health */}
           <div className="hidden md:flex items-center gap-2">
             <StatusBadge status={getSystemStatus()} label="System" />
@@ -249,9 +250,9 @@ export default function DashboardLayout() {
 
           {/* Notifications */}
           <div className="relative">
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="relative"
               onClick={() => setNotificationsOpen(!notificationsOpen)}
             >
@@ -269,7 +270,7 @@ export default function DashboardLayout() {
                 <div className="p-3 border-b border-border flex items-center justify-between">
                   <h3 className="font-semibold">Notifications</h3>
                   {unreadCount > 0 && (
-                    <button 
+                    <button
                       onClick={handleMarkAllAsRead}
                       className="text-xs text-primary hover:underline"
                     >
@@ -284,18 +285,17 @@ export default function DashboardLayout() {
                     </div>
                   ) : (
                     notifications.map((notification) => (
-                      <div 
+                      <div
                         key={notification.id}
                         className={`p-3 border-b border-border last:border-0 hover:bg-accent cursor-pointer ${!notification.read ? 'bg-accent/50' : ''}`}
                         onClick={() => handleMarkAsRead(notification.id)}
                       >
                         <div className="flex items-start gap-2">
-                          <div className={`w-2 h-2 rounded-full mt-1.5 ${
-                            notification.type === 'error' ? 'bg-red-500' :
+                          <div className={`w-2 h-2 rounded-full mt-1.5 ${notification.type === 'error' ? 'bg-red-500' :
                             notification.type === 'success' ? 'bg-green-500' :
-                            notification.type === 'payment' ? 'bg-blue-500' :
-                            'bg-gray-500'
-                          }`} />
+                              notification.type === 'payment' ? 'bg-blue-500' :
+                                'bg-gray-500'
+                            }`} />
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm">{notification.title}</p>
                             <p className="text-xs text-muted-foreground truncate">{notification.message}</p>

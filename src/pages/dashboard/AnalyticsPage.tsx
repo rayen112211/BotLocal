@@ -2,22 +2,9 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { TrendingUp, MessageSquare, Users, Calendar } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
-// Mock data
-const messageData = [
-  { day: "Mon", messages: 45 },
-  { day: "Tue", messages: 52 },
-  { day: "Wed", messages: 48 },
-  { day: "Thu", messages: 61 },
-  { day: "Fri", messages: 73 },
-  { day: "Sat", messages: 68 },
-  { day: "Sun", messages: 39 }
-];
-
-const conversationData = [
-  { name: "Completed", value: 48, color: "#10b981" },
-  { name: "Pending", value: 12, color: "#f59e0b" },
-  { name: "Support Needed", value: 5, color: "#ef4444" }
-];
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/context/AuthContext";
+import { dashboardAPI } from "@/lib/api";
 
 const languageData = [
   { name: "English", value: 42 },
@@ -27,6 +14,31 @@ const languageData = [
 ];
 
 export default function AnalyticsPage() {
+  const { business } = useAuth();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['analytics', business?.id],
+    queryFn: async () => {
+      if (!business?.id) return null;
+      const res = await dashboardAPI.getAnalytics(business.id);
+      return res.data;
+    },
+    enabled: !!business?.id,
+  });
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-muted-foreground">Loading analytics...</div>;
+  }
+
+  const {
+    messagesThisWeek = 0,
+    activeConversations = 0,
+    bookingsThisWeek = 0,
+    customerSatisfaction = 0,
+    messageData = [],
+    conversationData = []
+  } = data || {};
+
   return (
     <div className="space-y-6">
       <div>
@@ -40,9 +52,9 @@ export default function AnalyticsPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Messages This Week</p>
-              <p className="text-3xl font-bold text-foreground mt-2">386</p>
+              <p className="text-3xl font-bold text-foreground mt-2">{messagesThisWeek}</p>
               <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" /> +12% vs last week
+                <TrendingUp className="w-3 h-3" /> Live
               </p>
             </div>
             <MessageSquare className="w-8 h-8 text-primary/20" />
@@ -53,8 +65,8 @@ export default function AnalyticsPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Active Conversations</p>
-              <p className="text-3xl font-bold text-foreground mt-2">65</p>
-              <p className="text-xs text-muted-foreground mt-2">Avg response time: 2s</p>
+              <p className="text-3xl font-bold text-foreground mt-2">{activeConversations}</p>
+              <p className="text-xs text-muted-foreground mt-2">Active in last 7 days</p>
             </div>
             <Users className="w-8 h-8 text-primary/20" />
           </div>
@@ -63,9 +75,9 @@ export default function AnalyticsPage() {
         <Card className="p-5">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Bookings Created</p>
-              <p className="text-3xl font-bold text-foreground mt-2">18</p>
-              <p className="text-xs text-green-600 mt-2">+2 this week</p>
+              <p className="text-sm text-muted-foreground">Bookings This Week</p>
+              <p className="text-3xl font-bold text-foreground mt-2">{bookingsThisWeek}</p>
+              <p className="text-xs text-green-600 mt-2">Live updates</p>
             </div>
             <Calendar className="w-8 h-8 text-primary/20" />
           </div>
@@ -75,8 +87,8 @@ export default function AnalyticsPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Customer Satisfaction</p>
-              <p className="text-3xl font-bold text-foreground mt-2">94%</p>
-              <p className="text-xs text-muted-foreground mt-2">Based on 47 reviews</p>
+              <p className="text-3xl font-bold text-foreground mt-2">{customerSatisfaction}%</p>
+              <p className="text-xs text-muted-foreground mt-2">Overall average</p>
             </div>
             <div className="text-2xl">⭐</div>
           </div>

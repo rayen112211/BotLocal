@@ -44,6 +44,8 @@ export const authAPI = {
 export const dashboardAPI = {
   getStats: (businessId: string) =>
     api.get(`/dashboard/${businessId}`),
+  getAnalytics: (businessId: string) =>
+    api.get(`/dashboard/${businessId}/analytics`),
 };
 
 // Bookings endpoints
@@ -96,7 +98,7 @@ export const businessAPI = {
 // Telegram status
 export const telegramAPI = {
   getStatus: (businessId: string) => api.get(`/telegram/business-status/${businessId}`),
-  registerWebhook: (businessId: string, backendUrl: string) => 
+  registerWebhook: (businessId: string, backendUrl: string) =>
     api.post(`/telegram/register-webhook/${businessId}`, { backendUrl }),
 };
 
