@@ -44,7 +44,45 @@ app.use(cors({
     credentials: true,
 }));
 
-// Use standard body parsing generally, except when routes explicitly need raw bodies
+import Stripe from 'stripe';
+import { handleStripeEvent } from './routes/stripe';
+
+// Stripe webhook MUST come before express.json()
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+
+    if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
+        return res.status(500).send('Stripe configuration missing');
+    }
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: '2026-01-28.clover',
+    });
+
+    let event: Stripe.Event;
+
+    try {
+        // req.body is verified as a Buffer here because of express.raw
+        event = stripe.webhooks.constructEvent(req.body, sig as string, process.env.STRIPE_WEBHOOK_SECRET);
+    } catch (err: any) {
+        console.error(`[STRIPE WEBHOOK] ✗ Signature verification failed: ${err.message}`);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    console.log(`[STRIPE WEBHOOK] Received event: ${event.type}, ID: ${event.id}`);
+
+    // Handle the event
+    try {
+        await handleStripeEvent(event);
+    } catch (error: any) {
+        console.error(`[STRIPE WEBHOOK] ✗ Error processing event ${event.id}: ${error.message}`);
+        return res.status(500).json({ error: 'Failed to process webhook' });
+    }
+
+    res.json({ received: true });
+});
+
+// Use standard body parsing for all other routes
 app.use(express.json());
 app.use('/api/stripe', stripeRouter);
 app.use(express.urlencoded({ extended: true }));

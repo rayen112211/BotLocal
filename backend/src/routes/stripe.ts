@@ -68,40 +68,11 @@ router.post('/create-checkout-session', express.json(), authenticate, async (req
 });
 
 // ===========================================
-// STRIPE WEBHOOK - Authoritative Payment Handler
-// ===========================================
-
-// Raw body is applied correctly here for Stripe signature verification
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
-    const sig = req.headers['stripe-signature'];
-    let event: Stripe.Event;
-
-    try {
-        event = stripe.webhooks.constructEvent(req.body, sig as string, process.env.STRIPE_WEBHOOK_SECRET!);
-    } catch (err: any) {
-        console.error(`[STRIPE WEBHOOK] ✗ Signature verification failed: ${err.message}`);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    console.log(`[STRIPE WEBHOOK] Received event: ${event.type}, ID: ${event.id}`);
-
-    // Handle the event - MONEY = TRUTH
-    try {
-        await handleStripeEvent(event);
-    } catch (error: any) {
-        console.error(`[STRIPE WEBHOOK] ✗ Error processing event ${event.id}: ${error.message}`);
-        // Return 500 to Stripe to trigger retry
-        return res.status(500).json({ error: 'Failed to process webhook' });
-    }
-
-    res.json({ received: true });
-});
-
-// ===========================================
 // PROCESS STRIPE EVENT - Idempotent Handler
+// Exported so it can be used by the raw webhook handler in index.ts
 // ===========================================
 
-async function handleStripeEvent(event: Stripe.Event): Promise<void> {
+export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
     const eventId = event.id;
     const eventType = event.type;
 
