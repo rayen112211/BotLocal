@@ -103,6 +103,13 @@ export default function BillingPage() {
 
   const currentPlan = subscription?.plan ?? "Starter";
 
+  // Debugging logs requested by user
+  if (business && subscription) {
+    console.log('Current Plan:', business.plan, 'Subscription Plan:', subscription.plan);
+    console.log('Message Limit from API:', subscription.messageLimit);
+    console.log('Message Count from API:', subscription.messageCount);
+  }
+
   return (
     <div className="space-y-6">
       <div>

@@ -47,7 +47,7 @@ const FAQs = [
     items: [
       {
         q: "Do you offer a free trial?",
-        a: "Yes! You get 30 days free to try the Starter plan (500 messages/month). No credit card required."
+        a: "Yes! You get 30 days free to try the Starter plan (100 messages/month). No credit card required."
       },
       {
         q: "What if I need more messages?",

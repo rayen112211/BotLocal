@@ -36,11 +36,15 @@ router.get('/:businessId', async (req, res) => {
             where: { businessId, reviewSent: true }
         });
 
+        const planKey = business.plan.toLowerCase();
+        const planFeatures = global.PLAN_FEATURES?.[planKey] || global.PLAN_FEATURES?.starter;
+        const limit = planFeatures?.features?.messages_per_month ?? Infinity;
+
         res.json({
             stats: {
                 messagesUsed: business.messageCount,
-                messageLimit: business.plan === 'Starter' ? 500 : 'Unlimited',
-                usagePercent: business.plan === 'Starter' ? (business.messageCount / 500) * 100 : 0,
+                messageLimit: limit === Infinity ? 'Unlimited' : limit,
+                usagePercent: limit === Infinity ? 0 : (business.messageCount / limit) * 100,
                 activeConversations,
                 bookingsThisWeek,
                 reviewsCollected

@@ -13,7 +13,7 @@ const features = [
 ];
 
 const plans = [
-  { name: "Starter", price: 29, features: ["500 messages/month", "1 language", "Basic analytics", "Telegram chatbot", "Booking management"], popular: false },
+  { name: "Starter", price: 29, features: ["100 messages/month", "1 language", "Basic analytics", "Telegram chatbot", "Booking management"], popular: false },
   { name: "Pro", price: 59, features: ["Unlimited messages", "All languages", "Full analytics", "Review automation", "Priority support"], popular: true },
   { name: "Agency", price: 99, features: ["Everything in Pro", "Multiple locations", "White-label option", "API access", "Dedicated support"], popular: false },
 ];
@@ -155,8 +155,8 @@ export default function LandingPage() {
               <div
                 key={plan.name}
                 className={`relative p-8 rounded-xl border transition-all duration-300 ${plan.popular
-                    ? "bg-card border-primary shadow-elevated scale-[1.02]"
-                    : "bg-card border-border shadow-card hover:shadow-card-hover"
+                  ? "bg-card border-primary shadow-elevated scale-[1.02]"
+                  : "bg-card border-border shadow-card hover:shadow-card-hover"
                   }`}
               >
                 {plan.popular && (
