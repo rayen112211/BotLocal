@@ -54,9 +54,9 @@ router.post('/create-checkout-session', express.json(), authenticate, async (req
             mode: 'subscription',
             success_url: `${process.env.FRONTEND_URL}/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${process.env.FRONTEND_URL}/pricing?payment=cancelled`,
-            client_reference_id: businessId,
+            client_reference_id: business.id,
             metadata: {
-                businessId: businessId,
+                businessId: business.id,
                 plan: planId
             }
         });
@@ -78,88 +78,66 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
     const eventId = event.id;
     const eventType = event.type;
 
-    // Check memory first (fastest duplicate prevention)
+    // Fast memory duplicate check
     if (processedWebhooks.has(eventId)) {
-        console.log(`[STRIPE] Webhook already processed in memory: ${eventId}`);
         return;
     }
 
-    // Check for idempotency in DB - don't process same event twice
+    // Database duplicate check
     const existingEvent = await prisma.paymentEvent.findUnique({
         where: { stripeEventId: eventId }
     });
 
     if (existingEvent) {
-        console.log(`[STRIPE] Event ${eventId} already processed in DB, skipping`);
-        processedWebhooks.add(eventId); // Sync memory
+        processedWebhooks.add(eventId);
         return;
     }
+    processedWebhooks.add(eventId);
 
-    processedWebhooks.add(eventId); // Mark as processed in memory
-
-    await prisma.paymentEvent.create({
-        data: {
-            stripeEventId: eventId,
-            type: eventType,
-            status: 'processing',
-            rawEvent: JSON.stringify(event)
-        }
-    });
-    console.log(`[STRIPE] Persisted event ${eventId} (${eventType})`);
-
+    // Only process what we know safely
     switch (eventType) {
         case 'checkout.session.completed': {
             const session = event.data.object as Stripe.Checkout.Session;
-            const businessId = session.metadata?.businessId || session.client_reference_id;
+            const businessId = session.metadata?.businessId;
             const planId = session.metadata?.plan;
 
             if (!businessId) {
-                console.error('[STRIPE] No business ID in checkout session metadata');
+                console.error('[STRIPE] No businessId in metadata');
                 return;
             }
 
             let planName = 'Starter';
             if (planId) {
-                // Determine Plan name (e.g. "pro" -> "Pro")
-                const foundPlanKey = Object.keys(global.STRIPE_PRICES || {}).find(
-                    key => key === planId
-                );
-
+                const foundPlanKey = Object.keys(global.STRIPE_PRICES || {}).find(key => key === planId);
                 if (foundPlanKey && global.PLAN_FEATURES && global.PLAN_FEATURES[foundPlanKey]) {
                     planName = global.PLAN_FEATURES[foundPlanKey].name;
                 } else {
-                    // Fallback
                     planName = planId.charAt(0).toUpperCase() + planId.slice(1);
                 }
             }
 
-            // Update business plan atomically
+            // USER REQUEST FIX: Unconditionally update the business plan
             await prisma.business.update({
                 where: { id: businessId },
                 data: {
-                    plan: planName,
+                    plan: planId ? planId.toUpperCase() : planName.toUpperCase(),
                     stripeCustomerId: session.customer as string
                 }
             });
 
-            // Use actual paid amount mapping if needed or fallback to the session amount_total
-            const PLAN_PRICES: Record<string, number> = {
-                pro: 2999, // $29.99
-                enterprise: 9999 // $99.99
-            };
+            // Safely save the payment event now that we know businessId is solid
+            const PLAN_PRICES: Record<string, number> = { pro: 2999, enterprise: 9999 };
             const amountToSave = planId ? (PLAN_PRICES[planId.toLowerCase()] || session.amount_total) : session.amount_total;
 
-            await prisma.paymentEvent.updateMany({
-                where: { stripeEventId: eventId },
-                data: { businessId, plan: planName, amount: amountToSave ?? undefined, status: 'processed' }
-            });
-
-            await prisma.notification.create({
+            await prisma.paymentEvent.create({
                 data: {
+                    stripeEventId: eventId,
+                    type: eventType,
+                    status: 'completed',
                     businessId: businessId,
-                    type: 'payment',
-                    title: 'Payment Successful!',
-                    message: `Your subscription has been upgraded to ${planName}. You now have access to all ${planName} features.`
+                    plan: planName,
+                    amount: amountToSave ?? undefined,
+                    rawEvent: JSON.stringify(event)
                 }
             });
 
@@ -171,61 +149,18 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
             const subscription = event.data.object as Stripe.Subscription;
             const customerId = subscription.customer as string;
 
-            // Downgrade to Starter
-            const result = await prisma.business.updateMany({
-                where: { stripeCustomerId: customerId },
+            const business = await prisma.business.findFirst({ where: { stripeCustomerId: customerId } });
+            if (!business) return;
+
+            await prisma.business.update({
+                where: { id: business.id },
                 data: { plan: 'Starter' }
             });
-
-            if (result.count > 0) {
-                // Find the business to notify
-                const business = await prisma.business.findFirst({
-                    where: { stripeCustomerId: customerId }
-                });
-
-                if (business) {
-                    await prisma.notification.create({
-                        data: {
-                            businessId: business.id,
-                            type: 'payment',
-                            title: 'Subscription Cancelled',
-                            message: 'Your subscription has been cancelled. You have been moved to the Starter plan.'
-                        }
-                    });
-                }
-            }
-
-            await prisma.paymentEvent.updateMany({ where: { stripeEventId: eventId }, data: { status: 'processed' } });
             console.log(`[STRIPE] Customer ${customerId} downgraded to Starter`);
             break;
         }
 
-        case 'invoice.payment_failed': {
-            const invoice = event.data.object as Stripe.Invoice;
-            const customerId = invoice.customer as string;
-
-            const business = await prisma.business.findFirst({
-                where: { stripeCustomerId: customerId }
-            });
-
-            if (business) {
-                await prisma.notification.create({
-                    data: {
-                        businessId: business.id,
-                        type: 'error',
-                        title: 'Payment Failed',
-                        message: `Payment of ${(invoice.amount_due / 100).toFixed(2)} ${invoice.currency} failed. Please update your payment method.`
-                    }
-                });
-            }
-
-            await prisma.paymentEvent.updateMany({ where: { stripeEventId: eventId }, data: { status: 'processed' } });
-            console.log(`[STRIPE] Payment failed for customer ${customerId}`);
-            break;
-        }
-
         default:
-            await prisma.paymentEvent.updateMany({ where: { stripeEventId: eventId }, data: { status: 'processed' } });
             console.log(`[STRIPE] Unhandled event type: ${eventType}`);
     }
 }
