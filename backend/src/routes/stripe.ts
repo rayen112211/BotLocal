@@ -71,8 +71,8 @@ router.post('/create-checkout-session', express.json(), authenticate, async (req
 // STRIPE WEBHOOK - Authoritative Payment Handler
 // ===========================================
 
-// Raw body is applied in index.ts for this path; do not parse JSON here
-router.post('/webhook', async (req: Request, res: Response) => {
+// Raw body is applied correctly here for Stripe signature verification
+router.post('/webhook', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
     const sig = req.headers['stripe-signature'];
     let event: Stripe.Event;
 

@@ -44,10 +44,9 @@ app.use(cors({
     credentials: true,
 }));
 
-// Stripe webhook needs raw body - mount stripe router before json() so webhook handler gets raw body
-app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
-app.use('/api/stripe', stripeRouter);
+// Use standard body parsing generally, except when routes explicitly need raw bodies
 app.use(express.json());
+app.use('/api/stripe', stripeRouter);
 app.use(express.urlencoded({ extended: true }));
 
 // Debug Telegram Webhook
