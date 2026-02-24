@@ -10,13 +10,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 // ===========================================
-// PLAN PRICE IDS - Source of truth for plans
+// PLAN PRICE IDS - Handled Dynamically Now
 // ===========================================
-// These should match your Stripe product prices
-const PLAN_PRICES: Record<string, { priceId: string; name: string; messages: number }> = {
-    'price_pro_monthly': { priceId: 'price_pro_monthly', name: 'Pro', messages: 5000 },
-    'price_agency_monthly': { priceId: 'price_agency_monthly', name: 'Agency', messages: Infinity },
-};
+// Prices are automatically created and stored in global.STRIPE_PRICES
 
 // ===========================================
 // CREATE CHECKOUT SESSION - Frontend calls this
@@ -36,18 +32,11 @@ router.post('/create-checkout-session', express.json(), authenticate, async (req
         const business = await prisma.business.findUnique({ where: { id: businessId } });
         if (!business) return res.status(404).json({ error: 'Business not found' });
 
-        // Map planId to Stripe price ID
-        let stripePriceId = '';
-        let productName = '';
+        // Map planId to Stripe price ID dynamically
+        const stripePriceId = global.STRIPE_PRICES?.[planId];
 
-        if (planId === 'pro') {
-            stripePriceId = process.env.STRIPE_PRO_PRICE_ID || 'price_pro_monthly';
-            productName = 'Pro Plan - BotLocal';
-        } else if (planId === 'agency') {
-            stripePriceId = process.env.STRIPE_AGENCY_PRICE_ID || 'price_agency_monthly';
-            productName = 'Agency Plan - BotLocal';
-        } else {
-            return res.status(400).json({ error: 'Invalid plan selected' });
+        if (!stripePriceId || stripePriceId === 'free') {
+            return res.status(400).json({ error: 'Invalid plan selected or plan is free' });
         }
 
         // Create checkout session with price ID (not amount)
@@ -154,11 +143,13 @@ async function handleStripeEvent(event: Stripe.Event): Promise<void> {
                 const subscriptionItem = subscription.items.data[0];
                 const priceId = subscriptionItem.price.id;
 
-                // Map price ID to plan name
-                if (priceId === process.env.STRIPE_AGENCY_PRICE_ID || priceId === 'price_agency_monthly') {
-                    planName = 'Agency';
-                } else if (priceId === process.env.STRIPE_PRO_PRICE_ID || priceId === 'price_pro_monthly') {
-                    planName = 'Pro';
+                // Map price ID to plan name dynamically
+                const foundPlanKey = Object.keys(global.STRIPE_PRICES || {}).find(
+                    key => global.STRIPE_PRICES[key] === priceId
+                );
+
+                if (foundPlanKey && global.PLAN_FEATURES && global.PLAN_FEATURES[foundPlanKey]) {
+                    planName = global.PLAN_FEATURES[foundPlanKey].name;
                 }
             }
 
@@ -272,7 +263,9 @@ router.get('/subscription', authenticate, async (req: AuthRequest, res: Response
 
         if (!business) return res.status(404).json({ error: 'Business not found' });
 
-        const messageLimit = business.plan === 'Agency' ? Infinity : (business.plan === 'Pro' ? 5000 : 500);
+        const planKey = business.plan.toLowerCase();
+        const planFeatures = global.PLAN_FEATURES?.[planKey] || global.PLAN_FEATURES?.starter;
+        const messageLimit = planFeatures?.features?.messages_per_month ?? Infinity;
 
         res.json({
             plan: business.plan,

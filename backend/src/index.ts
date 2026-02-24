@@ -13,6 +13,7 @@ import telegramRouter from './routes/telegram';
 import notificationsRouter from './routes/notifications';
 import prisma from './lib/prisma';
 import { handleTelegramWebhook } from './services/telegram';
+import { initializeStripePrices } from './services/stripe';
 
 dotenv.config();
 
@@ -193,6 +194,9 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     });
 });
 
-app.listen(port, () => {
+app.listen(port, async () => {
     console.log(`Server is running on port ${port}`);
+
+    // Auto-initialize Stripe pricing system
+    await initializeStripePrices();
 });

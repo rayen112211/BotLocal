@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CreditCard, Check, ArrowRight } from "lucide-react";
+import { CreditCard, Check, X, ArrowRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,41 +16,48 @@ const PLANS = [
     period: "/month",
     description: "Perfect for trying out",
     features: [
-      "Up to 500 messages/month",
-      "Basic analytics",
-      "Multi-language support",
-      "Email support"
+      { text: "100 messages/month", included: true },
+      { text: "1 business", included: true },
+      { text: "Basic AI replies", included: true },
+      { text: "Community support", included: true },
+      { text: "Knowledge base", included: false },
+      { text: "Custom personality", included: false }
     ],
     recommended: false
   },
   {
     id: "pro",
     name: "Pro",
-    price: "$29",
+    price: "$29.99",
     period: "/month",
     description: "Best for growing businesses",
     features: [
-      "Up to 5,000 messages/month",
-      "Advanced analytics",
-      "Priority support",
-      "Custom branding",
-      "API access"
+      { text: "5,000 messages/month", included: true },
+      { text: "10 businesses", included: true },
+      { text: "Advanced AI", included: true },
+      { text: "Email support", included: true },
+      { text: "Knowledge base scanning", included: true },
+      { text: "Custom AI personality", included: true },
+      { text: "24/7 phone support", included: false },
+      { text: "API access", included: false }
     ],
     recommended: true
   },
   {
-    id: "agency",
-    name: "Agency",
-    price: "$99",
+    id: "enterprise",
+    name: "Enterprise",
+    price: "$99.99",
     period: "/month",
     description: "For managing multiple businesses",
     features: [
-      "Unlimited messages",
-      "Full analytics & reporting",
-      "Dedicated support",
-      "White label solution",
-      "API & Webhooks",
-      "Custom integrations"
+      { text: "UNLIMITED messages", included: true },
+      { text: "UNLIMITED businesses", included: true },
+      { text: "Advanced+ AI", included: true },
+      { text: "24/7 phone support", included: true },
+      { text: "Knowledge base", included: true },
+      { text: "Custom personality", included: true },
+      { text: "API access", included: true },
+      { text: "Dedicated account manager", included: true }
     ],
     recommended: false
   }
@@ -162,8 +169,12 @@ export default function BillingPage() {
               <ul className="space-y-3 mb-6 flex-1">
                 {plan.features.map((feature, i) => (
                   <li key={i} className="flex items-start gap-3">
-                    <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-foreground">{feature}</span>
+                    {feature.included ? (
+                      <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <X className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                    )}
+                    <span className={`text-sm ${feature.included ? 'text-foreground' : 'text-muted-foreground line-through'}`}>{feature.text}</span>
                   </li>
                 ))}
               </ul>

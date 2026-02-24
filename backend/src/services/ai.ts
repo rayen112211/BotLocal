@@ -43,6 +43,14 @@ export const generateReply = async (businessId: string, customerPhone: string, c
     const business = await prisma.business.findUnique({ where: { id: businessId } });
     if (!business) return "Business not found.";
 
+    const planKey = business.plan.toLowerCase();
+    const planFeatures = global.PLAN_FEATURES?.[planKey] || global.PLAN_FEATURES?.starter;
+    const messageLimit = planFeatures?.features?.messages_per_month;
+
+    if (messageLimit !== null && business.messageCount >= messageLimit) {
+        return "Please contact the business directly. (Message limit reached)";
+    }
+
     // 2. Fetch Knowledge Base
     const kbs = await prisma.knowledgeBase.findMany({ where: { businessId } });
     const context = kbs.map(k => k.content).join("\n\n");

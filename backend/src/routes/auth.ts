@@ -38,7 +38,9 @@ router.post('/signup', async (req, res) => {
             business: {
                 id: business.id,
                 email: business.email,
-                name: business.name
+                name: business.name,
+                plan: business.plan,
+                planFeatures: global.PLAN_FEATURES?.[business.plan.toLowerCase()] || global.PLAN_FEATURES?.starter
             }
         });
     } catch (error) {
@@ -72,7 +74,9 @@ router.post('/login', async (req, res) => {
             business: {
                 id: business.id,
                 email: business.email,
-                name: business.name
+                name: business.name,
+                plan: business.plan,
+                planFeatures: global.PLAN_FEATURES?.[business.plan.toLowerCase()] || global.PLAN_FEATURES?.starter
             }
         });
     } catch (error) {
