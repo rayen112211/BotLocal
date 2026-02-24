@@ -6,6 +6,10 @@ const router = Router();
 router.get('/:businessId', async (req, res) => {
     try {
         const { businessId } = req.params;
+        // Verify token ownership
+        if ((req as any).businessId !== businessId) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
 
         const business = await prisma.business.findUnique({ where: { id: businessId } });
         if (!business) return res.status(404).json({ error: 'Business not found' });
@@ -73,6 +77,11 @@ router.get('/:businessId', async (req, res) => {
 router.get('/:businessId/analytics', async (req, res) => {
     try {
         const { businessId } = req.params;
+        // Verify token ownership
+        if ((req as any).businessId !== businessId) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
         const business = await prisma.business.findUnique({ where: { id: businessId } });
         if (!business) return res.status(404).json({ error: 'Business not found' });
 

@@ -12,7 +12,10 @@ export const activeBots: Record<string, Telegraf> = {};
 export async function setupTelegramWebhook(token: string, backendUrl: string): Promise<{ success: boolean; error?: string }> {
     try {
         const bot = new Telegraf(token);
-        const webhookUrl = `https://botlocal.onrender.com/api/telegram/webhook`;
+
+        // Ensure no trailing slash on backendUrl
+        const baseUrl = backendUrl.endsWith('/') ? backendUrl.slice(0, -1) : backendUrl;
+        const webhookUrl = `${baseUrl}/api/telegram/webhook/${token}`;
 
         // First, delete any existing webhook to ensure clean state
         await bot.telegram.deleteWebhook();
@@ -93,11 +96,34 @@ export async function getTelegramBotStatus(token: string): Promise<{
 
 const FALLBACK_REPLY = 'Sorry, something went wrong. Please try again in a moment.';
 
+// Cache for idempotency to prevent duplicate message processing
+const processedUpdates = new Map<string, number>();
+
 export async function handleTelegramWebhook(token: string, body: any): Promise<{ success: boolean; error?: string }> {
     const startTime = Date.now();
     const logPrefix = `[TELEGRAM] [${new Date().toISOString()}]`;
-    const updateId = body?.update_id ?? '?';
+    const updateId = body?.update_id?.toString() ?? '?';
     console.log(`${logPrefix} Update ${updateId} | token: ${token.substring(0, 8)}...`);
+
+    // Idempotency Check
+    if (updateId !== '?' && processedUpdates.has(updateId)) {
+        console.log(`${logPrefix} Duplicate update ${updateId} ignored`);
+        return { success: true };
+    }
+
+    // Auto cleanup old updates every 1000 items to avoid memory leak
+    if (processedUpdates.size > 1000) {
+        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+        for (const [key, timestamp] of processedUpdates.entries()) {
+            if (timestamp < fiveMinutesAgo) {
+                processedUpdates.delete(key);
+            }
+        }
+    }
+
+    if (updateId !== '?') {
+        processedUpdates.set(updateId, Date.now());
+    }
 
     try {
         const business = await prisma.business.findFirst({
@@ -127,6 +153,8 @@ export async function handleTelegramWebhook(token: string, body: any): Promise<{
         const incomingText = body.message.text;
         const messageId = body.message.message_id;
 
+        console.log(`[TELEGRAM] Message from: ${customerId}`);
+        console.log(`[TELEGRAM] Found business: ${business.id}`);
         console.log(`${logPrefix} Update ${updateId} | from ${customerId}: "${incomingText.substring(0, 50)}${incomingText.length > 50 ? '...' : ''}"`);
 
         // 4. Update lastMessageAt for diagnostics
@@ -175,8 +203,10 @@ export async function handleTelegramWebhook(token: string, body: any): Promise<{
                 }
             });
             messages = [{ role: 'user', content: incomingText }];
+            console.log(`[TELEGRAM] Saving to conversation: ${conversation.id}`);
             console.log(`${logPrefix} Created new conversation ${conversation.id}`);
         } else {
+            console.log(`[TELEGRAM] Saving to conversation: ${conversation.id}`);
             if (!conversation.isAiEnabled) {
                 console.log(`${logPrefix} AI disabled for conversation ${conversation.id}`);
                 await bot.telegram.sendMessage(customerId, "AI replies are off for this chat. A team member will respond soon.");

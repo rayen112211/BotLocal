@@ -7,6 +7,12 @@ const router = Router();
 router.get('/:businessId', async (req, res) => {
     try {
         const { businessId } = req.params;
+
+        // Verify token ownership
+        if ((req as any).businessId !== businessId) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
         const conversations = await prisma.conversation.findMany({
             where: { businessId },
             orderBy: { updatedAt: 'desc' }
@@ -38,6 +44,12 @@ router.get('/:businessId', async (req, res) => {
 router.get('/:businessId/:customerPhone', async (req, res) => {
     try {
         const { businessId, customerPhone } = req.params;
+
+        // Verify token ownership
+        if ((req as any).businessId !== businessId) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
         const conversation = await prisma.conversation.findFirst({
             where: { businessId, customerPhone: customerPhone.replace('whatsapp:', '') }
         });
@@ -57,6 +69,12 @@ router.get('/:businessId/:customerPhone', async (req, res) => {
 router.patch('/toggle-ai', async (req, res) => {
     try {
         const { conversationId, isAiEnabled } = req.body;
+
+        // Verify ownership
+        const existing = await prisma.conversation.findUnique({ where: { id: conversationId } });
+        if (!existing || existing.businessId !== (req as any).businessId) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
 
         const updated = await prisma.conversation.update({
             where: { id: conversationId },
