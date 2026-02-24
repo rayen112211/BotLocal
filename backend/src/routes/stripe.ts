@@ -4,6 +4,8 @@ import Stripe from 'stripe';
 import prisma from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/authMiddleware';
 
+const processedWebhooks = new Set<string>();
+
 const router = Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: '2026-01-28.clover',
@@ -76,15 +78,24 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
     const eventId = event.id;
     const eventType = event.type;
 
-    // Check for idempotency - don't process same event twice
+    // Check memory first (fastest duplicate prevention)
+    if (processedWebhooks.has(eventId)) {
+        console.log(`[STRIPE] Webhook already processed in memory: ${eventId}`);
+        return;
+    }
+
+    // Check for idempotency in DB - don't process same event twice
     const existingEvent = await prisma.paymentEvent.findUnique({
         where: { stripeEventId: eventId }
     });
 
     if (existingEvent) {
-        console.log(`[STRIPE] Event ${eventId} already processed, skipping`);
+        console.log(`[STRIPE] Event ${eventId} already processed in DB, skipping`);
+        processedWebhooks.add(eventId); // Sync memory
         return;
     }
+
+    processedWebhooks.add(eventId); // Mark as processed in memory
 
     await prisma.paymentEvent.create({
         data: {
@@ -131,9 +142,16 @@ export async function handleStripeEvent(event: Stripe.Event): Promise<void> {
                 }
             });
 
+            // Use actual paid amount mapping if needed or fallback to the session amount_total
+            const PLAN_PRICES: Record<string, number> = {
+                pro: 2999, // $29.99
+                enterprise: 9999 // $99.99
+            };
+            const amountToSave = planId ? (PLAN_PRICES[planId.toLowerCase()] || session.amount_total) : session.amount_total;
+
             await prisma.paymentEvent.updateMany({
                 where: { stripeEventId: eventId },
-                data: { businessId, plan: planName, amount: session.amount_total ?? undefined, status: 'processed' }
+                data: { businessId, plan: planName, amount: amountToSave ?? undefined, status: 'processed' }
             });
 
             await prisma.notification.create({
@@ -236,12 +254,25 @@ router.get('/subscription', authenticate, async (req: AuthRequest, res: Response
         const planFeatures = global.PLAN_FEATURES?.[planKey] || global.PLAN_FEATURES?.starter;
         const messageLimit = planFeatures?.features?.messages_per_month ?? Infinity;
 
+        const paymentEvents = await prisma.paymentEvent.findMany({
+            where: { businessId, status: 'processed', type: 'checkout.session.completed' },
+            orderBy: { createdAt: 'desc' },
+            take: 10
+        });
+
         res.json({
             plan: business.plan,
             stripeCustomerId: business.stripeCustomerId,
             messageCount: business.messageCount,
             messageLimit: messageLimit,
-            percentageUsed: messageLimit === Infinity ? 0 : Math.round((business.messageCount / messageLimit) * 100)
+            percentageUsed: messageLimit === Infinity ? 0 : Math.round((business.messageCount / messageLimit) * 100),
+            invoices: paymentEvents.map(event => ({
+                id: event.id.substring(0, 8).toUpperCase(),
+                date: event.createdAt,
+                amount: event.amount || 0,
+                status: "Paid",
+                url: null
+            }))
         });
     } catch (error: any) {
         console.error('[STRIPE] Get subscription error:', error);

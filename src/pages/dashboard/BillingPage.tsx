@@ -221,23 +221,27 @@ export default function BillingPage() {
               </tr>
             </thead>
             <tbody>
-              {[
-                { id: "INV-001", date: "Mar 1, 2026", amount: "$0.00", status: "Paid" },
-                { id: "INV-002", date: "Feb 1, 2026", amount: "$0.00", status: "Paid" },
-                { id: "INV-003", date: "Jan 1, 2026", amount: "$0.00", status: "Paid" }
-              ].map((invoice, i) => (
-                <tr key={i} className="border-b border-border hover:bg-muted/50">
-                  <td className="p-4 text-sm text-foreground">{invoice.id}</td>
-                  <td className="p-4 text-sm text-muted-foreground">{invoice.date}</td>
-                  <td className="p-4 text-sm text-foreground font-medium">{invoice.amount}</td>
-                  <td className="p-4 text-sm">
-                    <Badge className="bg-green-100 text-green-800">{invoice.status}</Badge>
-                  </td>
-                  <td className="p-4 text-right">
-                    <button className="text-primary hover:underline text-sm font-medium">Download</button>
-                  </td>
+              {subscription?.invoices && subscription.invoices.length > 0 ? (
+                subscription.invoices.map((invoice: any, i: number) => (
+                  <tr key={i} className="border-b border-border hover:bg-muted/50">
+                    <td className="p-4 text-sm text-foreground">{invoice.id}</td>
+                    <td className="p-4 text-sm text-muted-foreground">{new Date(invoice.date).toLocaleDateString()}</td>
+                    <td className="p-4 text-sm text-foreground font-medium">${(invoice.amount / 100).toFixed(2)}</td>
+                    <td className="p-4 text-sm">
+                      <Badge className="bg-green-100 text-green-800">{invoice.status}</Badge>
+                    </td>
+                    <td className="p-4 text-right">
+                      {invoice.url && (
+                        <a href={invoice.url} target="_blank" rel="noreferrer" className="text-primary hover:underline text-sm font-medium">Download</a>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="p-4 text-center text-sm text-muted-foreground">No billing history yet.</td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </Card>
